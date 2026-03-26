@@ -1,6 +1,6 @@
 # Cesium App Notes
 
-This repo is a CesiumJS workspace with custom apps under `Apps/myapp` and a demo under `JiangDemo`.
+This repo is a CesiumJS workspace with custom apps under `Apps/myapp`.
 
 ## Start Server
 
@@ -20,36 +20,22 @@ Notes:
 
 All pages are served from the same dev server (default `http://localhost:8080`):
 
+- CityVisionLab home (service navigation)  
+  `http://localhost:8080/Apps/myapp/index.html`
+
 - Window annotation (custom fields, CSV export)  
   `http://localhost:8080/Apps/myapp/GE_WongChukHung_annotation/GE3d_WongChuHung_annotation.html`
 
 - Batch view capture (load CSV, filename field order, zip download)  
   `http://localhost:8080/Apps/myapp/ViewGenerationImage/GE3d.html`
 
-- Jiang demo tileset viewer  
-  `http://localhost:8080/JiangDemo/test.html`
-
 ## CSV Input
 
-CSV files for the capture app are read from:
-
-```
-Apps/myapp/input
-```
-
-The page loads the list from:
-
-```
-GET /api/input-csv
-```
+The capture page supports loading CSV from local file/folder selection in browser.
 
 ## Tileset Notes
 
-The capture page currently loads the tileset from:
-
-```
-https://livablecitylab.hkust-gz.edu.cn/HKUSTGZ_3D/Data/tileset.json
-```
+Both annotation and capture pages currently use Cesium Google Photorealistic 3D Tiles.
 
 ## Custom Script
 
