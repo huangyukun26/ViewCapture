@@ -114,6 +114,18 @@ async function generateDevelopmentBuild() {
 (async function () {
   const gzipHeader = Buffer.from("1F8B08", "hex");
   const production = argv.production;
+  const hardenPublicMode = process.env.CITYVISIONLAB_HARDEN_PUBLIC === "1";
+  const corsOriginsFromEnv = (process.env.CORS_ORIGINS || "")
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+  const allowedOrigins = new Set([
+    "https://cityvisionlab.cn",
+    "https://www.cityvisionlab.cn",
+    "http://localhost:8080",
+    "http://127.0.0.1:8080",
+    ...corsOriginsFromEnv,
+  ]);
 
   let contexts;
   if (!production) {
@@ -148,11 +160,30 @@ async function generateDevelopmentBuild() {
   app.use(compression());
   //eslint-disable-next-line no-unused-vars
   app.use(function (req, res, next) {
-    res.header("Access-Control-Allow-Origin", "*");
-    res.header(
-      "Access-Control-Allow-Headers",
-      "Origin, X-Requested-With, Content-Type, Accept"
-    );
+    const requestOrigin = req.headers.origin;
+    if (hardenPublicMode) {
+      if (!requestOrigin || allowedOrigins.has(requestOrigin)) {
+        res.header("Access-Control-Allow-Origin", requestOrigin || "https://cityvisionlab.cn");
+      }
+      res.header("Vary", "Origin");
+      res.header(
+        "Access-Control-Allow-Headers",
+        "Origin, X-Requested-With, Content-Type, Accept, Authorization"
+      );
+      res.header("Access-Control-Allow-Methods", "GET,HEAD,OPTIONS");
+      res.header("X-Content-Type-Options", "nosniff");
+      res.header("Referrer-Policy", "strict-origin-when-cross-origin");
+      res.header("X-Frame-Options", "SAMEORIGIN");
+      if (req.method === "OPTIONS") {
+        return res.sendStatus(204);
+      }
+    } else {
+      res.header("Access-Control-Allow-Origin", "*");
+      res.header(
+        "Access-Control-Allow-Headers",
+        "Origin, X-Requested-With, Content-Type, Accept"
+      );
+    }
     next();
   });
   
@@ -176,8 +207,11 @@ async function generateDevelopmentBuild() {
     });
   }
   
-     // add my mirror file
-  app.use("/data", express.static("D:/"));
+  // Legacy local mirror path used by older local debugging workflows.
+  // Disabled in hardened public mode.
+  if (!hardenPublicMode) {
+    app.use("/data", express.static("D:/"));
+  }
 
   const knownTilesetFormats = [
     /\.b3dm/,
@@ -208,6 +242,16 @@ async function generateDevelopmentBuild() {
         .map((e) => `Apps/myapp/input/${e.name}`);
 
       res.json({ files });
+    });
+  });
+
+  app.get("/healthz", function (req, res) {
+    res.status(200).json({
+      ok: true,
+      service: "windowviewcapture",
+      mode: hardenPublicMode ? "public-hardened" : "default",
+      production: !!production,
+      time: new Date().toISOString(),
     });
   });
 
@@ -342,6 +386,12 @@ async function generateDevelopmentBuild() {
 
   //eslint-disable-next-line no-unused-vars
   app.get("/proxy/*", function (req, res, next) {
+    if (hardenPublicMode) {
+      return res
+        .status(403)
+        .send("Proxy endpoint is disabled in hardened public mode.");
+    }
+
     // look for request like http://localhost:8080/proxy/http://example.com/file?query=1
     let remoteUrl = getRemoteUrlFromParam(req);
     if (!remoteUrl) {

@@ -15,6 +15,11 @@ Notes:
 - `npm start` runs `node server.js --production` (port 8080 by default).
 - You can override port: `node server.js --production --port 8081`
 - To listen on all interfaces: `node server.js --public --production --port 8080`
+- Hardened public mode (recommended on server):
+  - Linux/macOS:
+    `CITYVISIONLAB_HARDEN_PUBLIC=1 CORS_ORIGINS="https://cityvisionlab.cn,https://www.cityvisionlab.cn" node server.js --public --production --port 8080`
+  - Windows PowerShell:
+    `$env:CITYVISIONLAB_HARDEN_PUBLIC='1'; $env:CORS_ORIGINS='https://cityvisionlab.cn,https://www.cityvisionlab.cn'; node server.js --public --production --port 8080`
 
 ## Pages
 
@@ -36,6 +41,17 @@ The capture page supports loading CSV from local file/folder selection in browse
 ## Tileset Notes
 
 Both annotation and capture pages currently use Cesium Google Photorealistic 3D Tiles.
+
+## Deployment
+
+- PM2 config: `ecosystem.config.cjs`
+- Nginx example: `deploy/nginx/cityvisionlab.cn.conf`
+- Health check endpoint: `GET /healthz`
+
+In hardened public mode:
+- `/proxy/*` is disabled
+- legacy `/data -> D:/` static mirror is disabled
+- CORS is restricted to configured origins
 
 ## Custom Script
 
