@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+
+  <script src="../../../Build/Cesium/Cesium.js"></script>
+
+  <script src="../jQuery/jquery-3.5.1.min.js"></script>
+
+  <script src="../jQuery/jquery.cookie.js"></script>
+
+  <script src="./view_capture_WongChuHung_annotation.js" type="module"></script>
+
+
+  <link href="../../../Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+
+  <style>
+    :root {
+      --bg: #eaf3ff;
+      --panel: #f7fbff;
+      --panel-strong: #e2efff;
+      --ink: #0b1b33;
+      --muted: #3b5a84;
+      --accent: #2d6cdf;
+      --accent-strong: #1f5bd1;
+      --border: #c6d9f2;
+      --shadow: 0 10px 24px rgba(18, 63, 132, 0.12);
+    }
+
+    html, body {
+      height: 100%;
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+    }
+
+    #content, #container {
+      height: 100%;
+    }
+
+    .toolbar {
+      padding: 6px 8px;
+      background: linear-gradient(90deg, #f8fbff 0%, #e7f1ff 100%);
+      border-bottom: 1px solid var(--border);
+      box-shadow: 0 2px 8px rgba(24, 67, 135, 0.08);
+    }
+
+    .toolbar input {
+      width: 110px;
+      box-sizing: border-box;
+    }
+
+    #mainLayout {
+      display: flex;
+      height: calc(100% - 42px);
+    }
+
+    #cesiumContainer {
+      flex: 1;
+      min-width: 0;
+    }
+
+    #windowsInfoContainer {
+      width: 360px;
+      max-width: 40vw;
+      overflow: auto;
+      padding: 8px;
+      box-sizing: border-box;
+      background: var(--panel);
+      border-left: 1px solid var(--border);
+      box-shadow: var(--shadow);
+    }
+
+    .field-grid {
+      display: grid;
+      grid-template-columns: 100px 1fr;
+      gap: 6px 8px;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .field-grid input {
+      width: 100%;
+      box-sizing: border-box;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 4px 6px;
+    }
+
+    .table {
+      width: 100%;
+      max-height: calc(100vh - 260px);
+      overflow: auto;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: #fff;
+    }
+
+    .field-actions {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 8px;
+    }
+
+    .field-actions input {
+      min-width: 0;
+      box-sizing: border-box;
+    }
+
+    .field-config-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 10px;
+    }
+
+    .field-config-table th,
+    .field-config-table td {
+      border: 1px solid #ccc;
+      padding: 4px;
+      font-size: 12px;
+    }
+
+    .field-config-table input {
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    #poiInfoTable {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+    }
+
+    #poiInfoTable th,
+    #poiInfoTable td {
+      border: 1px solid var(--border);
+      padding: 2px 4px;
+      font-size: 12px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    #poiInfoTable th {
+      position: sticky;
+      top: 0;
+      background: var(--panel-strong);
+      z-index: 2;
+    }
+
+    #poiInfoTable td input {
+      width: 100%;
+      box-sizing: border-box;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 2px 4px;
+    }
+
+    button,
+    input[type="submit"] {
+      border: 1px solid var(--border);
+      background: #fff;
+      color: var(--ink);
+      border-radius: 8px;
+      padding: 4px 10px;
+      cursor: pointer;
+      transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+    }
+
+    button:hover,
+    input[type="submit"]:hover {
+      border-color: var(--accent);
+      background: #f0f6ff;
+    }
+
+    button:active,
+    input[type="submit"]:active {
+      transform: translateY(1px);
+    }
+
+    b {
+      color: var(--muted);
+    }
+  </style>
+
+</head>
+
+<body>
+
+
+
+
+
+    <div id="content">
+
+      <div id="container">
+
+        <div class="toolbar">
+          <!-- <button id="ViewerSizeSwitch">ViewerSizeSwitch</button> -->
+    
+          <button id="newControl">newControl</button>
+          <button id="originalControl">originalControl</button>
+          <button id="flyto">Flyto</button>
+          <b>Lon</b>
+          <input type="text" id="lon" style="width: 100px;"></input>
+          <b>Lat</b>
+          <input type="text" id="lat" style="width: 100px;"></input> <br>
+    
+        </div>
+    
+    
+    
+        <div id="mainLayout">
+
+
+          <div id="cesiumContainer" class="cesiumContainer">
+          </div>
+
+
+          <div id="windowsInfoContainer">
+    
+            <div id="titleInfo" style="width:100%;margin-bottom:8px">
+
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                <b>Windows Info</b>
+                <div>
+                  <input type="submit" value="Delete" id="dataDelete">
+                  <input type="submit" value="Download" id="dataSubmit">
+                </div>
+              </div>
+
+              <div class="field-grid">
+                <label for="csv_name"><b>CSV Name</b></label>
+                <input type="text" id="csv_name" placeholder="optional">
+              </div>
+
+              <div class="field-actions">
+                <input type="text" id="new_field_name" placeholder="field name">
+                <input type="text" id="new_field_default" placeholder="default value">
+                <button id="add_field_btn" type="button">add</button>
+              </div>
+
+              <table class="field-config-table" id="field_config_table">
+                <thead>
+                  <tr>
+                    <th style="width:40%;">field</th>
+                    <th style="width:45%;">default</th>
+                    <th style="width:15%;">op</th>
+                  </tr>
+                </thead>
+                <tbody id="field_config_body"></tbody>
+              </table>
+
+            </div>
+    
+            <div class="table" style="width:100%;float:left">
+              <table id="poiInfoTable" class="t" border="1">
+                <thead id="poiInfoHead"></thead>
+                <tbody id="poiInfoBody"></tbody>
+              </table>
+            </div>
+    
+          </div>
+    
+        </div>
+    
+      </div>
+
+
+
+    </div>
+
+
+
+
+  
+  </div>
+</body>
+
+</html>

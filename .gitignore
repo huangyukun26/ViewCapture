@@ -1,0 +1,35 @@
+# Node / package manager
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Env / local secrets
+.env
+.env.*
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.tmp
+*.swp
+
+# Runtime artifacts
+*.log
+*.zip
+HKUSTGZ_3D_Download/
+Apps/myapp/input/*
+!Apps/myapp/input/.gitkeep
+Apps/myapp/output/*
+!Apps/myapp/output/.gitkeep
+
+# If this repo is only for your app code, ignore Cesium upstream vendor folders
+Build/
+Source/
+Specs/
+ThirdParty/
+packages/
+JiangDemo/

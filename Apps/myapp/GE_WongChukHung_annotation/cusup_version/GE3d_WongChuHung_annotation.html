@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+
+  <script src="../../../Build/Cesium/Cesium.js"></script>
+
+  <script src="../jQuery/jquery-3.5.1.min.js"></script>
+
+  <script src="../jQuery/jquery.cookie.js"></script>
+
+  <script src="./view_capture_WongChuHung_annotation.js" type="module"></script>
+
+
+  <link href="../../../Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+
+</head>
+
+<body>
+
+
+
+
+
+    <div id="content">
+
+      <div id="container">
+
+        <div class="toolbar">
+          <!-- <button id="ViewerSizeSwitch">ViewerSizeSwitch</button> -->
+    
+          <button id="newControl">newControl</button>
+          <button id="originalControl">originalControl</button>
+          <button id="flyto">Flyto</button>
+          <b>Lon</b>
+          <input type="text" id="lon" style="width: 100px;"></input>
+          <b>Lat</b>
+          <input type="text" id="lat" style="width: 100px;"></input> <br>
+    
+        </div>
+    
+    
+    
+        <div id="content">
+    
+    
+          <div id="cesiumContainer" class="cesiumContainer" style="width:60%;height: 900px;float:left">
+          </div>
+    
+    
+          <div id="windowsInfoContainer" style="width: 500px;;float:left">
+    
+            <div id="titleInfo" style="width:100%;margin-bottom:5px">
+    
+              <b>Windows Info</b><br>
+    
+              <input type="submit" value="Download" style="float:right" id="dataSubmit">
+    
+              <input type="submit" value="Delete" style="float:right" id="dataDelete">
+    
+              <b>Unique ID</b>
+              <input type="text" id="uid" style="width: 50px;"></input>
+
+              <b>Building name</b>
+              <input type="text" id="building_id" style="width: 100px;"></input> <br>
+
+              <b>----------------------------------------------------------------------</b><br>              
+    
+              <b>Layout No.</b>
+              <input type="text" id="layout_id" style="width: 50px;"></input> <br>
+    
+              <b>----------------------------------------------------------------------</b><br>
+    
+              <b>Flat ID</b>
+              <input type="text" id="unit_id" style="width: 80px;"></input>
+
+              <b>Room Type</b>
+              <input type="text" id="room_id" style="width: 80px;"></input><br>
+
+              <b>Pair ID</b>
+              <input type="text" id="pair_id" style="width: 80px;"></input>
+    
+              <b>Floor no. start</b>
+              <input type="text" id="floor_id_start" style="width: 50px;"></input>
+    
+              <b>Floor no. end</b>
+              <input type="text" id="floor_id_end" style="width: 50px;"></input>
+    
+    
+            </div>
+    
+            <div class="table" style="width:100%;float:left">
+              <table id="poiInfoTable" class="t" border="1">
+                <tr>
+
+                  <th>uid</th>
+                  <th>layout</th>
+                  <th>bldg</th>
+                  <th>flat_id</th>
+                  <th>room</th>
+                  <th>pair</th>
+                  <th>floor_start</th>
+                  <th>floor_end</th>
+                  <th>id</th>
+                  <th>x</th>
+                  <th>y</th>
+                  <th>height</th>
+    
+                </tr>
+              </table>
+            </div>
+    
+          </div>
+    
+        </div>
+    
+      </div>
+
+
+      <!-- var uid = document.getElementById("uid").value;
+      var layout_id = document.getElementById("layout_id").value;
+      var building_id = document.getElementById("building_id").value;
+      var unit_id = document.getElementById("unit_id").value;
+      var room_id = document.getElementById("room_id").value;
+      var pair_id = document.getElementById("pair_id").value;        
+      var floor_id_start = document.getElementById("floor_id_start").value;
+      var floor_id_end = document.getElementById("floor_id_end").value; -->
+
+
+
+    </div>
+
+
+
+
+  
+  </div>
+</body>
+
+</html>

@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+
+  <script src="../../../../Build/Cesium/Cesium.js"></script>
+  <script src="../../../../canvas2image.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+
+  <script src="./jQuery/jquery-3.5.1.min.js"></script>
+
+  <script src="./jQuery/jquery.cookie.js"></script>
+
+  <link href="../../../../Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+
+  <style>
+    :root {
+      --bg: #eaf3ff;
+      --panel: #f7fbff;
+      --panel-strong: #e2efff;
+      --ink: #0b1b33;
+      --muted: #3b5a84;
+      --accent: #2d6cdf;
+      --border: #c6d9f2;
+      --shadow: 0 10px 24px rgba(18, 63, 132, 0.12);
+    }
+
+    html, body {
+      margin: 0;
+      height: 100%;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+    }
+
+    #container {
+      padding: 6px 8px;
+    }
+
+    .toolbar {
+      padding: 8px;
+      background: linear-gradient(90deg, #f8fbff 0%, #e7f1ff 100%);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      box-shadow: var(--shadow);
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      align-items: center;
+    }
+
+    .toolbar input,
+    .toolbar select {
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 4px 6px;
+      background: #fff;
+      color: var(--ink);
+    }
+
+    button {
+      border: 1px solid var(--border);
+      background: #fff;
+      color: var(--ink);
+      border-radius: 8px;
+      padding: 4px 10px;
+      cursor: pointer;
+      transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+    }
+
+    button:hover {
+      border-color: var(--accent);
+      background: #f0f6ff;
+    }
+
+    button:active {
+      transform: translateY(1px);
+    }
+
+    #captureProgress {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      background: #fff;
+    }
+
+    #captureStatus {
+      color: var(--muted);
+      font-weight: 600;
+    }
+
+    .panel-row {
+      margin: 6px 0;
+      padding: 6px 8px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+    }
+  </style>
+
+</head>
+
+<body>
+
+
+  <div id="container">
+
+    <div class="toolbar">
+      <button id="is_full_view">ViewerSizeSwitch</button>
+
+      <button id="get_window_view">getWindowView</button>
+      <button id="getViewCapture">viewCapture</button>
+
+      <b>Start ID</b>
+      <input type="text" id="start_id" style="width:80px;"></input>
+
+      <b>End ID</b>
+      <input type="text" id="end_id" style="width: 80px;"></input>
+
+      <b>CSV</b>
+      <input type="file" id="csv_file" accept=".csv" multiple webkitdirectory directory>
+      <select id="csv_local_list" style="width: 240px;"></select>
+      <span id="csv_local_info" style="color:#3b5a84;"></span>
+      <button id="loadCsv">loadCSV</button>
+      <label style="margin-left:8px;">
+        <input type="checkbox" id="flipNormal">
+        flip normal
+      </label>
+
+      <button id="batchCapture">batchCapture</button>
+
+      <label style="margin-left:8px;">
+        <input type="checkbox" id="zip_mode" checked>
+        zipAfterBatch
+      </label>
+      <button id="downloadZip">downloadZip</button>
+
+      <button id="clearCookies">clearCookies</button>
+
+    </div>
+
+    <div class="panel-row">
+      <progress id="captureProgress" value="0" max="100" style="width: 420px; height: 16px;"></progress>
+      <span id="captureStatus" style="margin-left: 8px;">Ready</span>
+    </div>
+
+    <div class="panel-row">
+      <label>
+        Brightness
+        <input type="range" id="brightnessSlider" min="1.0" max="1.8" step="0.05" value="1.45" style="width: 200px;">
+      </label>
+      <span id="brightnessValue">1.45</span>
+    </div>
+
+    <div class="panel-row">
+      <label>
+        Capture Brightness
+        <input type="range" id="captureBrightness" min="1.0" max="2.0" step="0.05" value="1.25" style="width: 200px;">
+      </label>
+      <span id="captureBrightnessValue">1.25</span>
+    </div>
+
+    <div class="panel-row" style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+      <b>Filename Fields</b>
+      <input type="text" id="filename_fields" style="width: 420px;" value="uid,bldgid,officeid,windowid,lon,lat,elevation,heading">
+      <select id="filename_field_select" style="width: 140px;"></select>
+      <button id="addFilenameField">add</button>
+      <button id="resetFilenameFields">reset</button>
+      <button id="clearFilenameFields">clear</button>
+    </div>
+
+
+
+    <div id="content">
+
+
+      <div id="cesiumContainer" class="cesiumContainer" style="width:900px;height:900px;float:left">
+      </div>
+
+
+
+
+    </div>
+
+  </div>
+
+
+  <script src="./view_capture.js" type="module"></script>
+</body>
+
+</html>
