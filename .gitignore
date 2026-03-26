@@ -26,6 +26,14 @@ Apps/myapp/input/*
 Apps/myapp/output/*
 !Apps/myapp/output/.gitkeep
 
+# Cesium sample apps (not part of this project)
+Apps/CesiumViewer/
+Apps/SampleData/
+Apps/Sandcastle/
+Apps/TimelineDemo/
+Apps/HelloWorld.html
+Apps/.eslintrc.json
+
 # If this repo is only for your app code, ignore Cesium upstream vendor folders
 Build/
 Source/
