@@ -227,6 +227,20 @@ async function generateDevelopmentBuild(buildTools) {
   ];
   app.get(knownTilesetFormats, checkGzipAndNext);
 
+  // Friendly entry routes
+  app.get("/", function (req, res) {
+    res.redirect(302, "/Apps/myapp/index.html");
+  });
+  app.get("/annotation", function (req, res) {
+    res.redirect(
+      302,
+      "/Apps/myapp/GE_WongChukHung_annotation/GE3d_WongChuHung_annotation.html"
+    );
+  });
+  app.get("/capture", function (req, res) {
+    res.redirect(302, "/Apps/myapp/ViewGenerationImage/GE3d.html");
+  });
+
   // List CSV files from Apps/myapp/input for client-side dropdowns
   app.get("/api/input-csv", function (req, res) {
     const inputDir = path.resolve("Apps", "myapp", "input");
@@ -349,6 +363,16 @@ async function generateDevelopmentBuild(buildTools) {
     // development build instead. That way, previous build output is preserved
     // while the latest is being served
     app.use("/Build/CesiumUnminified", express.static("Build/CesiumDev"));
+  }
+
+  // In hardened mode, do not expose data folders directly.
+  if (hardenPublicMode) {
+    app.use("/Apps/myapp/input", function (req, res) {
+      res.status(403).send("Forbidden");
+    });
+    app.use("/Apps/myapp/output", function (req, res) {
+      res.status(403).send("Forbidden");
+    });
   }
 
   app.use(express.static(path.resolve(".")));

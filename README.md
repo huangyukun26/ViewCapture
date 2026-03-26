@@ -27,12 +27,15 @@ All pages are served from the same dev server (default `http://localhost:8080`):
 
 - CityVisionLab home (service navigation)  
   `http://localhost:8080/Apps/myapp/index.html`
+  - Also available via root: `http://localhost:8080/`
 
 - Window annotation (custom fields, CSV export)  
   `http://localhost:8080/Apps/myapp/GE_WongChukHung_annotation/GE3d_WongChuHung_annotation.html`
+  - Friendly route: `http://localhost:8080/annotation`
 
 - Batch view capture (load CSV, filename field order, zip download)  
   `http://localhost:8080/Apps/myapp/ViewGenerationImage/GE3d.html`
+  - Friendly route: `http://localhost:8080/capture`
 
 ## CSV Input
 
