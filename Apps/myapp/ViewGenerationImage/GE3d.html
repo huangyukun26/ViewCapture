@@ -5,6 +5,11 @@
   <meta charset="utf-8">
 
   <script src="../../../../Build/Cesium/Cesium.js"></script>
+  <script>
+    if (typeof Cesium === "undefined") {
+      document.write('<script src="https://cdn.jsdelivr.net/npm/cesium@1.111/Build/Cesium/Cesium.js"><\\/script>');
+    }
+  </script>
   <script src="../../../../canvas2image.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 
@@ -13,6 +18,7 @@
   <script src="./jQuery/jquery.cookie.js"></script>
 
   <link href="../../../../Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/cesium@1.111/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
 
   <style>
     :root {

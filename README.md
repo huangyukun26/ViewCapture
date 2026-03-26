@@ -42,6 +42,11 @@ The capture page supports loading CSV from local file/folder selection in browse
 
 Both annotation and capture pages currently use Cesium Google Photorealistic 3D Tiles.
 
+CesiumJS script/css loading strategy:
+- Prefer local `Build/Cesium/*` when present.
+- Automatically fallback to CDN (`jsDelivr`) if local build is missing.
+- This means production deployment can run without building Cesium from source.
+
 ## Deployment
 
 - PM2 config: `ecosystem.config.cjs`

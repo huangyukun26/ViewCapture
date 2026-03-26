@@ -38,15 +38,6 @@ const argv = yargs(process.argv)
   })
   .help().argv;
 
-import {
-  createCesiumJs,
-  createJsHintOptions,
-  createCombinedSpecList,
-  glslToJavaScript,
-  createIndexJs,
-  buildCesium,
-} from "./scripts/build.js";
-
 const sourceFiles = [
   "packages/engine/Source/**/*.js",
   "!packages/engine/Source/*.js",
@@ -79,7 +70,8 @@ function formatTimeSinceInSeconds(start) {
  *
  * @returns {Bundles} The bundles.
  */
-async function generateDevelopmentBuild() {
+async function generateDevelopmentBuild(buildTools) {
+  const { createIndexJs, buildCesium } = buildTools;
   const startTime = performance.now();
 
   // Build @cesium/engine index.js
@@ -128,8 +120,18 @@ async function generateDevelopmentBuild() {
   ]);
 
   let contexts;
+  let buildTools;
   if (!production) {
-    contexts = await generateDevelopmentBuild();
+    try {
+      buildTools = await import("./scripts/build.js");
+    } catch (error) {
+      console.error(
+        "Failed to load build tooling. Did you remove Cesium source folders?"
+      );
+      console.error(error);
+      process.exit(1);
+    }
+    contexts = await generateDevelopmentBuild(buildTools);
   }
 
   // eventually this mime type configuration will need to change
@@ -279,7 +281,11 @@ async function generateDevelopmentBuild() {
 
     const glslWatcher = chokidar.watch(shaderFiles, { ignoreInitial: true });
     glslWatcher.on("all", async () => {
-      await glslToJavaScript(false, "Build/minifyShaders.state", "engine");
+      await buildTools.glslToJavaScript(
+        false,
+        "Build/minifyShaders.state",
+        "engine"
+      );
       esmCache.clear();
       iifeCache.clear();
     });
@@ -294,7 +300,7 @@ async function generateDevelopmentBuild() {
       workersCache.clear();
       iifeWorkersCache.clear();
       jsHintOptionsCache = undefined;
-      await createCesiumJs();
+      await buildTools.createCesiumJs();
     });
 
     const testWorkersCache = createRoute(
@@ -316,7 +322,7 @@ async function generateDevelopmentBuild() {
     const specWatcher = chokidar.watch(specFiles, { ignoreInitial: true });
     specWatcher.on("all", async (event) => {
       if (event === "add" || event === "unlink") {
-        await createCombinedSpecList();
+        await buildTools.createCombinedSpecList();
       }
 
       specsCache.clear();
@@ -331,7 +337,7 @@ async function generateDevelopmentBuild() {
       next
     ) {
       if (!jsHintOptionsCache) {
-        jsHintOptionsCache = await createJsHintOptions();
+        jsHintOptionsCache = await buildTools.createJsHintOptions();
       }
 
       res.append("Cache-Control", "max-age=0");
