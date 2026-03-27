@@ -96,7 +96,7 @@
     "open": "^9.1.0",
     "p-limit": "^4.0.0",
     "prettier": "2.1.2",
-    "prismjs": "^1.28.0",
+    "prismjs": "^1.30.0",
     "request": "^2.88.2",
     "rimraf": "^5.0.0",
     "sinon": "^17.0.0",
@@ -104,6 +104,12 @@
     "tsd-jsdoc": "^2.5.0",
     "typescript": "^5.0.2",
     "yargs": "^17.0.1"
+  },
+  "overrides": {
+    "dompurify": "^3.2.4",
+    "@babel/core": "^7.26.10",
+    "@babel/helpers": "^7.26.10",
+    "@babel/traverse": "^7.26.10"
   },
   "scripts": {
     "start": "node server.js --production",
