@@ -109,6 +109,29 @@ export class PgStore {
     return sanitizeUser(result.rows[0]);
   }
 
+  async listUsers() {
+    const result = await this.pool.query(
+      `SELECT id, username, role, created_at
+       FROM users
+       ORDER BY id ASC;`
+    );
+    return result.rows.map(sanitizeUser);
+  }
+
+  async setUserRole({ userId, role }) {
+    const result = await this.pool.query(
+      `UPDATE users
+       SET role = $2
+       WHERE id = $1
+       RETURNING id, username, role, created_at;`,
+      [userId, role]
+    );
+    if (result.rowCount === 0) {
+      return null;
+    }
+    return sanitizeUser(result.rows[0]);
+  }
+
   async listProjectsForUser(userId) {
     const result = await this.pool.query(
       `SELECT id, name, description, owner_user_id, created_at, updated_at
@@ -188,6 +211,28 @@ export class PgStore {
          AND ($2::text IS NULL OR project_id = $2::text)
        ORDER BY updated_at DESC;`,
       [userId, projectId]
+    );
+    return result.rows.map((row) => ({
+      id: Number(row.id),
+      projectId: row.project_id,
+      userId: Number(row.user_id),
+      type: row.type,
+      status: row.status,
+      payload: row.payload,
+      message: row.message,
+      outputPath: row.output_path,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    }));
+  }
+
+  async listAllJobs(limit = 200) {
+    const result = await this.pool.query(
+      `SELECT id, project_id, user_id, type, status, payload, message, output_path, created_at, updated_at
+       FROM jobs
+       ORDER BY updated_at DESC
+       LIMIT $1;`,
+      [limit]
     );
     return result.rows.map((row) => ({
       id: Number(row.id),

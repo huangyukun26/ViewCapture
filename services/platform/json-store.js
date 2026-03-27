@@ -83,6 +83,25 @@ export class JsonStore {
     return user ? sanitizeUser(user) : null;
   }
 
+  async listUsers() {
+    await this.ensureSchema();
+    return this.data.users
+      .slice()
+      .sort((a, b) => a.id - b.id)
+      .map(sanitizeUser);
+  }
+
+  async setUserRole({ userId, role }) {
+    await this.ensureSchema();
+    const user = this.data.users.find((item) => item.id === userId);
+    if (!user) {
+      return null;
+    }
+    user.role = role;
+    await this.flush();
+    return sanitizeUser(user);
+  }
+
   async listProjectsForUser(userId) {
     await this.ensureSchema();
     return this.data.projects
@@ -148,6 +167,14 @@ export class JsonStore {
           (projectId === null || item.projectId === projectId)
       )
       .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  }
+
+  async listAllJobs(limit = 200) {
+    await this.ensureSchema();
+    return this.data.jobs
+      .slice()
+      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+      .slice(0, limit);
   }
 
   async createJob({ projectId, userId, type, payload }) {

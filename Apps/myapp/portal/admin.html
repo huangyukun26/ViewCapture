@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CityVisionLab Admin</title>
+  <link rel="stylesheet" href="/Apps/myapp/portal/styles.css" />
+</head>
+<body>
+  <header class="topbar" id="topbar">
+    <div>
+      <div class="cvl-brand">
+        <span class="cvl-dot"></span>
+        <span>CityVisionLab Admin Dashboard</span>
+      </div>
+      <div class="cvl-subtitle">统一管理用户、项目与任务状态</div>
+    </div>
+    <div class="actions">
+      <a class="btn secondary" href="/workspace">返回 Workspace</a>
+    </div>
+  </header>
+
+  <main class="cvl-shell">
+    <section class="cvl-card" style="padding:16px;">
+      <h3 style="margin:0 0 10px;">系统摘要</h3>
+      <div id="summaryBox" class="status-line">Loading...</div>
+    </section>
+
+    <section class="cvl-card" style="padding:16px; margin-top:14px;">
+      <h3 style="margin:0 0 10px;">用户管理</h3>
+      <div id="usersBox" class="project-list"></div>
+    </section>
+
+    <section class="cvl-card" style="padding:16px; margin-top:14px;">
+      <h3 style="margin:0 0 10px;">近期任务</h3>
+      <div id="jobsBox" class="job-list" style="max-height:420px;"></div>
+    </section>
+  </main>
+
+  <script type="module" src="/Apps/myapp/portal/admin.js"></script>
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("embed") === "1") {
+      document.getElementById("topbar").style.display = "none";
+      document.querySelector("main").style.paddingTop = "12px";
+    }
+  </script>
+</body>
+</html>

@@ -5,6 +5,8 @@ Unified web workspace for:
 - login + project management
 - window annotation
 - batch view capture
+- semantic analysis (AI backend proxy)
+- admin dashboard
 
 All modules are served from the same Node server (`server.js`), with clean public routes.
 
@@ -35,6 +37,8 @@ Default URL: `http://localhost:8080`
 - `/workspace`: unified workspace (project/data/job panel + embedded tools)
 - `/annotation`: annotation module shell
 - `/capture`: capture module shell
+- `/analysis`: semantic analysis module shell
+- `/admin`: admin dashboard shell
 - `/healthz`: service health
 - `/api/platform/health`: platform backend health
 
@@ -56,6 +60,18 @@ Mounted at `/api/platform`:
 - `GET /jobs`
 - `POST /jobs`
 - `PATCH /jobs/:jobId/status`
+- `GET /admin/summary`
+- `GET /admin/users`
+- `PATCH /admin/users/:userId/role`
+- `GET /admin/jobs`
+
+AI backend proxy (requires login):
+
+- `/api/platform/ai/*` -> forwards to `PLATFORM_AI_BASE_URL` (default `http://127.0.0.1:5000`)
+- examples:
+  - `POST /api/platform/ai/upload`
+  - `POST /api/platform/ai/upload_csv`
+  - `GET /api/platform/ai/job/:jobId/status`
 
 Storage backend selection:
 
@@ -66,6 +82,16 @@ Session backend selection:
 
 - If `PLATFORM_REDIS_URL` is provided: Redis
 - Else fallback: in-memory sessions
+
+Bootstrap admin (optional, defaults provided):
+
+- `PLATFORM_BOOTSTRAP_ADMIN_USERNAME` (default `admin`)
+- `PLATFORM_BOOTSTRAP_ADMIN_PASSWORD` (default `admin12345`)
+
+Important:
+
+- CSV workflow is browser-local now. Users should load CSV files/folders from web file picker in the Capture page.
+- Workspace no longer depends on server-side `Apps/myapp/input` listing.
 
 ## 4. Docker Full Stack (Cloud)
 

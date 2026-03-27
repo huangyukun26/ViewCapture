@@ -9,9 +9,6 @@ const createProjectBtn = document.getElementById("createProjectBtn");
 const projectStatus = document.getElementById("projectStatus");
 const projectList = document.getElementById("projectList");
 
-const refreshCsvBtn = document.getElementById("refreshCsvBtn");
-const csvList = document.getElementById("csvList");
-
 const refreshJobsBtn = document.getElementById("refreshJobsBtn");
 const createJobBtn = document.getElementById("createJobBtn");
 const jobStatus = document.getElementById("jobStatus");
@@ -19,8 +16,12 @@ const jobList = document.getElementById("jobList");
 
 const openAnnotationBtn = document.getElementById("openAnnotationBtn");
 const openCaptureBtn = document.getElementById("openCaptureBtn");
+const openAnalysisBtn = document.getElementById("openAnalysisBtn");
+const openAdminBtn = document.getElementById("openAdminBtn");
 const openAnnotationTabBtn = document.getElementById("openAnnotationTabBtn");
 const openCaptureTabBtn = document.getElementById("openCaptureTabBtn");
+const openAnalysisTabBtn = document.getElementById("openAnalysisTabBtn");
+const openAdminTabBtn = document.getElementById("openAdminTabBtn");
 const workspaceStatus = document.getElementById("workspaceStatus");
 const toolFrame = document.getElementById("toolFrame");
 
@@ -63,21 +64,6 @@ async function loadProjects() {
   renderProjects();
 }
 
-async function loadCsvFiles() {
-  const data = await api("/api/platform/datasets/csv");
-  const files = data.files || [];
-  if (!files.length) {
-    csvList.innerHTML = `<div class="item">input 目录暂无 CSV 文件。</div>`;
-    return;
-  }
-  csvList.innerHTML = files
-    .map(
-      (file) =>
-        `<div class="item"><strong>${file.name}</strong><div style="color:#72859a;">${file.path}</div></div>`
-    )
-    .join("");
-}
-
 async function loadJobs() {
   const query = selectedProjectId
     ? `?projectId=${encodeURIComponent(selectedProjectId)}`
@@ -105,6 +91,12 @@ function setToolModule(moduleName) {
   if (moduleName === "annotation") {
     toolFrame.src = "/annotation?embed=1";
     setStatusLine(workspaceStatus, "当前模块: Window Annotation");
+  } else if (moduleName === "analysis") {
+    toolFrame.src = "/analysis?embed=1";
+    setStatusLine(workspaceStatus, "当前模块: WindowView Semantic Analysis");
+  } else if (moduleName === "admin") {
+    toolFrame.src = "/admin?embed=1";
+    setStatusLine(workspaceStatus, "当前模块: Admin Dashboard");
   } else {
     toolFrame.src = "/capture?embed=1";
     setStatusLine(workspaceStatus, "当前模块: View Capture");
@@ -116,12 +108,15 @@ async function bootstrap() {
     const me = await api("/api/platform/auth/me");
     currentUser = me.user;
     userInfo.textContent = `当前用户: ${currentUser.username} (${currentUser.role})`;
+    const isAdmin = currentUser.role === "admin";
+    openAdminBtn.style.display = isAdmin ? "inline-block" : "none";
+    openAdminTabBtn.style.display = isAdmin ? "inline-block" : "none";
   } catch (error) {
     window.location.href = "/portal";
     return;
   }
 
-  await Promise.all([loadProjects(), loadCsvFiles(), loadJobs()]);
+  await Promise.all([loadProjects(), loadJobs()]);
   setToolModule("annotation");
 }
 
@@ -163,12 +158,6 @@ projectList.addEventListener("click", (event) => {
   });
 });
 
-refreshCsvBtn.addEventListener("click", () => {
-  loadCsvFiles().catch((error) => {
-    setStatusLine(workspaceStatus, error.message, "error");
-  });
-});
-
 refreshJobsBtn.addEventListener("click", () => {
   loadJobs().catch((error) => {
     setStatusLine(jobStatus, error.message, "error");
@@ -204,11 +193,19 @@ createJobBtn.addEventListener("click", async () => {
 
 openAnnotationBtn.addEventListener("click", () => setToolModule("annotation"));
 openCaptureBtn.addEventListener("click", () => setToolModule("capture"));
+openAnalysisBtn.addEventListener("click", () => setToolModule("analysis"));
+openAdminBtn.addEventListener("click", () => setToolModule("admin"));
 openAnnotationTabBtn.addEventListener("click", () =>
   window.open("/annotation", "_blank", "noopener,noreferrer")
 );
 openCaptureTabBtn.addEventListener("click", () =>
   window.open("/capture", "_blank", "noopener,noreferrer")
+);
+openAnalysisTabBtn.addEventListener("click", () =>
+  window.open("/analysis", "_blank", "noopener,noreferrer")
+);
+openAdminTabBtn.addEventListener("click", () =>
+  window.open("/admin", "_blank", "noopener,noreferrer")
 );
 
 logoutBtn.addEventListener("click", async () => {

@@ -5,6 +5,7 @@ import express from "express";
 
 import { generateSessionToken } from "./session-store.js";
 import { hashPassword, verifyPassword } from "./password.js";
+import { createAiProxyMiddleware } from "./ai-proxy.js";
 
 const SESSION_COOKIE_NAME = "cvl_session";
 const SESSION_TTL_SECONDS = 7 * 24 * 60 * 60;
@@ -88,7 +89,8 @@ async function listCsvFiles(inputDir) {
 
 export function createPlatformRouter({ store, sessions, inputDir }) {
   const router = express.Router();
-  router.use(express.json({ limit: "2mb" }));
+  const aiBaseUrl =
+    process.env.PLATFORM_AI_BASE_URL || process.env.WINDOWVIEW_AI_URL || "http://127.0.0.1:5000";
 
   async function requireAuth(req, res, next) {
     const token = getSessionToken(req);
@@ -113,6 +115,13 @@ export function createPlatformRouter({ store, sessions, inputDir }) {
     return next();
   }
 
+  async function requireAdmin(req, res, next) {
+    if (!req.auth?.user || req.auth.user.role !== "admin") {
+      return sendError(res, 403, "Admin access required.");
+    }
+    return next();
+  }
+
   router.get("/health", (req, res) => {
     res.json({
       success: true,
@@ -123,6 +132,9 @@ export function createPlatformRouter({ store, sessions, inputDir }) {
       },
     });
   });
+
+  router.use("/ai", requireAuth, createAiProxyMiddleware(aiBaseUrl));
+  router.use(express.json({ limit: "2mb" }));
 
   router.post("/auth/register", async (req, res) => {
     try {
@@ -301,19 +313,6 @@ export function createPlatformRouter({ store, sessions, inputDir }) {
     }
   });
 
-  router.get("/datasets/csv", requireAuth, async (req, res) => {
-    try {
-      const files = await listCsvFiles(inputDir);
-      return res.json({
-        success: true,
-        data: { files },
-      });
-    } catch (error) {
-      console.error("[platform] list csv datasets error:", error);
-      return sendError(res, 500, "Failed to list CSV files.");
-    }
-  });
-
   router.get("/jobs", requireAuth, async (req, res) => {
     try {
       const projectId = req.query.projectId ? String(req.query.projectId) : null;
@@ -391,10 +390,91 @@ export function createPlatformRouter({ store, sessions, inputDir }) {
       success: true,
       data: {
         apiVersion: "v1",
+        aiBaseUrl,
         user: req.auth.user,
         csvCount: csvFiles.length,
       },
     });
+  });
+
+  router.get("/admin/users", requireAuth, requireAdmin, async (req, res) => {
+    try {
+      const users = await store.listUsers();
+      return res.json({
+        success: true,
+        data: { users },
+      });
+    } catch (error) {
+      console.error("[platform] list admin users error:", error);
+      return sendError(res, 500, "Failed to list users.");
+    }
+  });
+
+  router.patch(
+    "/admin/users/:userId/role",
+    requireAuth,
+    requireAdmin,
+    async (req, res) => {
+      try {
+        const userId = Number.parseInt(req.params.userId, 10);
+        if (!Number.isFinite(userId) || userId <= 0) {
+          return sendError(res, 400, "Invalid userId.");
+        }
+        const role = String(req.body?.role || "").trim();
+        if (role !== "admin" && role !== "user") {
+          return sendError(res, 400, "Role must be admin or user.");
+        }
+        const user = await store.setUserRole({ userId, role });
+        if (!user) {
+          return sendError(res, 404, "User not found.");
+        }
+        return res.json({
+          success: true,
+          data: { user },
+        });
+      } catch (error) {
+        console.error("[platform] update role error:", error);
+        return sendError(res, 500, "Failed to update role.");
+      }
+    }
+  );
+
+  router.get("/admin/jobs", requireAuth, requireAdmin, async (req, res) => {
+    try {
+      const limit = Number.parseInt(String(req.query.limit || "200"), 10);
+      const safeLimit = Number.isFinite(limit) && limit > 0 ? Math.min(limit, 1000) : 200;
+      const jobs = await store.listAllJobs(safeLimit);
+      return res.json({
+        success: true,
+        data: { jobs },
+      });
+    } catch (error) {
+      console.error("[platform] list admin jobs error:", error);
+      return sendError(res, 500, "Failed to list jobs.");
+    }
+  });
+
+  router.get("/admin/summary", requireAuth, requireAdmin, async (req, res) => {
+    try {
+      const users = await store.listUsers();
+      const jobs = await store.listAllJobs(1000);
+      const projects = await Promise.all(
+        users.map((user) => store.listProjectsForUser(user.id))
+      );
+      const projectCount = projects.reduce((acc, list) => acc + list.length, 0);
+      return res.json({
+        success: true,
+        data: {
+          users: users.length,
+          admins: users.filter((u) => u.role === "admin").length,
+          projects: projectCount,
+          jobs: jobs.length,
+        },
+      });
+    } catch (error) {
+      console.error("[platform] summary error:", error);
+      return sendError(res, 500, "Failed to load summary.");
+    }
   });
 
   return router;
