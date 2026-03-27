@@ -1,0 +1,107 @@
+version: "3.9"
+
+services:
+  viewcapture-web:
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile
+    container_name: cityvisionlab_viewcapture_web
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      NODE_ENV: production
+      CITYVISIONLAB_HARDEN_PUBLIC: "1"
+      CORS_ORIGINS: "https://cityvisionlab.cn,https://www.cityvisionlab.cn"
+      PLATFORM_DATABASE_URL: "postgres://windowview:windowview_change_me@postgres:5432/windowview"
+      PLATFORM_REDIS_URL: "redis://redis:6379"
+      PLATFORM_COOKIE_SECURE: "0"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - platform_data:/app/data
+      - ./runtime/input:/app/Apps/myapp/input
+      - ./runtime/output:/app/Apps/myapp/output
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: cityvisionlab_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: windowview
+      POSTGRES_USER: windowview
+      POSTGRES_PASSWORD: windowview_change_me
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U windowview -d windowview"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    container_name: cityvisionlab_redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+    volumes:
+      - redis_data:/data
+
+  # Optional legacy chain from provided docker image tar files:
+  # - windowviewservice_v4.tar
+  # - windowviewdisplayv2.tar
+  # - redis_wvi.tar
+  # - pgsql_wvi.tar
+  # Run with: docker compose --profile legacy up -d
+  legacy-redis:
+    image: redis_wvi:latest
+    container_name: cityvisionlab_legacy_redis
+    restart: unless-stopped
+    profiles: ["legacy"]
+    ports:
+      - "6380:6379"
+
+  legacy-postgres:
+    image: pgsql_wvi:latest
+    container_name: cityvisionlab_legacy_postgres
+    restart: unless-stopped
+    profiles: ["legacy"]
+    ports:
+      - "5433:5432"
+
+  legacy-windowview-service:
+    image: windowviewservice_v4:latest
+    container_name: cityvisionlab_legacy_service
+    restart: unless-stopped
+    profiles: ["legacy"]
+    ports:
+      - "5000:5000"
+    environment:
+      REDIS_HOST: legacy-redis
+      POSTGRES_HOST: legacy-postgres
+    depends_on:
+      - legacy-redis
+      - legacy-postgres
+
+  legacy-windowview-display:
+    image: windowviewdisplayv2:latest
+    container_name: cityvisionlab_legacy_display
+    restart: unless-stopped
+    profiles: ["legacy"]
+    ports:
+      - "8081:80"
+    depends_on:
+      - legacy-windowview-service
+
+volumes:
+  platform_data:
+  postgres_data:
+  redis_data:

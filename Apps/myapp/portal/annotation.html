@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Window Annotation</title>
+  <link rel="stylesheet" href="/Apps/myapp/portal/styles.css" />
+</head>
+<body class="shell-page">
+  <div class="shell-head" id="shellHead">
+    <strong>Window Annotation Module</strong>
+    <a href="/workspace">返回 Workspace</a>
+  </div>
+  <iframe src="/Apps/myapp/GE_WongChukHung_annotation/GE3d_WongChuHung_annotation.html"></iframe>
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("embed") === "1") {
+      document.getElementById("shellHead").style.display = "none";
+      document.querySelector("iframe").style.height = "100vh";
+    }
+  </script>
+</body>
+</html>

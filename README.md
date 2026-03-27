@@ -1,8 +1,14 @@
-# Cesium App Notes
+# CityVisionLab WindowViewCapture
 
-This repo is a CesiumJS workspace with custom apps under `Apps/myapp`.
+Unified web workspace for:
 
-## Start Server
+- login + project management
+- window annotation
+- batch view capture
+
+All modules are served from the same Node server (`server.js`), with clean public routes.
+
+## 1. Local Start
 
 From repo root:
 
@@ -11,62 +17,85 @@ npm install
 npm start
 ```
 
-Notes:
-- `npm start` runs `node server.js --production` (port 8080 by default).
-- You can override port: `node server.js --production --port 8081`
-- To listen on all interfaces: `node server.js --public --production --port 8080`
-- Hardened public mode (recommended on server):
+Default URL: `http://localhost:8080`
+
+### Optional start modes
+
+- public bind:
+  `node server.js --public --production --port 8080`
+- hardened public mode:
   - Linux/macOS:
     `CITYVISIONLAB_HARDEN_PUBLIC=1 CORS_ORIGINS="https://cityvisionlab.cn,https://www.cityvisionlab.cn" node server.js --public --production --port 8080`
-  - Windows PowerShell:
+  - PowerShell:
     `$env:CITYVISIONLAB_HARDEN_PUBLIC='1'; $env:CORS_ORIGINS='https://cityvisionlab.cn,https://www.cityvisionlab.cn'; node server.js --public --production --port 8080`
 
-## Pages
+## 2. Main Routes
 
-All pages are served from the same dev server (default `http://localhost:8080`):
+- `/` or `/portal`: unified login page
+- `/workspace`: unified workspace (project/data/job panel + embedded tools)
+- `/annotation`: annotation module shell
+- `/capture`: capture module shell
+- `/healthz`: service health
+- `/api/platform/health`: platform backend health
 
-- CityVisionLab home (service navigation)  
-  `http://localhost:8080/Apps/myapp/index.html`
-  - Also available via root: `http://localhost:8080/`
+Internal legacy pages are still present, but you should use the clean routes above.
 
-- Window annotation (custom fields, CSV export)  
-  `http://localhost:8080/Apps/myapp/GE_WongChukHung_annotation/GE3d_WongChuHung_annotation.html`
-  - Friendly route: `http://localhost:8080/annotation`
+## 3. Platform API (New)
 
-- Batch view capture (load CSV, filename field order, zip download)  
-  `http://localhost:8080/Apps/myapp/ViewGenerationImage/GE3d.html`
-  - Friendly route: `http://localhost:8080/capture`
+Mounted at `/api/platform`:
 
-## CSV Input
+- `POST /auth/register`
+- `POST /auth/login`
+- `POST /auth/logout`
+- `GET /auth/me`
+- `GET /projects`
+- `POST /projects`
+- `PATCH /projects/:projectId`
+- `DELETE /projects/:projectId`
+- `GET /datasets/csv`
+- `GET /jobs`
+- `POST /jobs`
+- `PATCH /jobs/:jobId/status`
 
-The capture page supports loading CSV from local file/folder selection in browser.
+Storage backend selection:
 
-## Tileset Notes
+- If `PLATFORM_DATABASE_URL` is provided: PostgreSQL
+- Else fallback: `data/platform/store.json`
 
-Both annotation and capture pages currently use Cesium Google Photorealistic 3D Tiles.
+Session backend selection:
 
-CesiumJS script/css loading strategy:
-- Prefer local `Build/Cesium/*` when present.
-- Automatically fallback to CDN (`jsDelivr`) if local build is missing.
-- This means production deployment can run without building Cesium from source.
+- If `PLATFORM_REDIS_URL` is provided: Redis
+- Else fallback: in-memory sessions
 
-## Deployment
+## 4. Docker Full Stack (Cloud)
+
+Files:
+
+- `deploy/docker/Dockerfile`
+- `deploy/docker/docker-compose.full.yml`
+- `deploy/docker/README.md`
+
+Quick run:
+
+```bash
+docker compose -f deploy/docker/docker-compose.full.yml up -d --build
+```
+
+This starts:
+
+- `viewcapture-web` (unified app)
+- `postgres` (platform data)
+- `redis` (sessions)
+
+Optional legacy profile is supported for your provided image tar files (`windowviewservice_v4`, `windowviewdisplayv2`, `redis_wvi`, `pgsql_wvi`).
+
+## 5. Production Nginx + PM2
 
 - PM2 config: `ecosystem.config.cjs`
-- Nginx example: `deploy/nginx/cityvisionlab.cn.conf`
-- Health check endpoint: `GET /healthz`
+- Nginx sample: `deploy/nginx/cityvisionlab.cn.conf`
 
-In hardened public mode:
-- `/proxy/*` is disabled
-- legacy `/data -> D:/` static mirror is disabled
-- CORS is restricted to configured origins
-
-## Custom Script
-
-Download a full 3D Tileset to local disk:
+## 6. 3D Tiles Download Script
 
 ```powershell
 node scripts/download-3dtiles.js --url "https://livablecitylab.hkust-gz.edu.cn/HKUSTGZ_3D/Data/tileset.json" --out ".\HKUSTGZ_3D_Download" --concurrency 12
 ```
-
-If you are running in a folder without `type: module`, rename to `.mjs` and run the same command with `.mjs`.

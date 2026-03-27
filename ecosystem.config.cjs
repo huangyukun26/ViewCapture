@@ -15,6 +15,9 @@ module.exports = {
         CITYVISIONLAB_HARDEN_PUBLIC: "1",
         CORS_ORIGINS:
           "https://cityvisionlab.cn,https://www.cityvisionlab.cn",
+        PLATFORM_DATABASE_URL: "",
+        PLATFORM_REDIS_URL: "",
+        PLATFORM_COOKIE_SECURE: "1",
       },
     },
   ],

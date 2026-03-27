@@ -3,206 +3,58 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>CityVisionLab | WindowViewCapture</title>
+  <title>CityVisionLab Entry</title>
   <style>
-    :root {
-      --bg: #eef3f8;
-      --panel: #f8fbff;
-      --panel-2: #e8f0f8;
-      --text: #1f3348;
-      --muted: #5f748b;
-      --primary: #2f6f9f;
-      --primary-2: #4d86b0;
-      --line: #c9d8e6;
-      --ok: #2d7b6f;
-    }
-
-    * {
-      box-sizing: border-box;
-    }
-
     body {
       margin: 0;
       min-height: 100vh;
-      font-family: "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
-      color: var(--text);
-      background:
-        radial-gradient(1200px 500px at -10% -10%, #d8e7f7 10%, transparent 60%),
-        radial-gradient(900px 500px at 110% 10%, #dbe8f4 10%, transparent 60%),
-        linear-gradient(180deg, #f4f8fc 0%, var(--bg) 100%);
-    }
-
-    .page {
-      max-width: 1100px;
-      margin: 0 auto;
-      padding: 32px 20px 48px;
-    }
-
-    .hero {
-      border: 1px solid var(--line);
-      border-radius: 20px;
-      padding: 28px;
-      background: linear-gradient(135deg, var(--panel), var(--panel-2));
-      box-shadow: 0 16px 36px rgba(47, 111, 159, 0.12);
-    }
-
-    .brand {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      color: var(--primary);
-      font-weight: 700;
-      letter-spacing: 0.4px;
-      margin-bottom: 16px;
-    }
-
-    .brand-dot {
-      width: 10px;
-      height: 10px;
-      border-radius: 50%;
-      background: var(--primary);
-      box-shadow: 0 0 0 6px rgba(47, 111, 159, 0.14);
-    }
-
-    h1 {
-      margin: 0 0 10px;
-      font-size: clamp(28px, 4vw, 42px);
-      line-height: 1.1;
-      color: #17324a;
-    }
-
-    .subtitle {
-      margin: 0;
-      max-width: 780px;
-      font-size: 16px;
-      line-height: 1.7;
-      color: var(--muted);
-    }
-
-    .service {
-      margin-top: 24px;
-      display: inline-flex;
-      align-items: center;
-      gap: 10px;
-      border-radius: 999px;
-      border: 1px solid #b8cde0;
-      background: rgba(255, 255, 255, 0.75);
-      padding: 8px 14px;
-      font-size: 14px;
-      color: #305876;
-    }
-
-    .service .status {
-      color: var(--ok);
-      font-weight: 600;
-    }
-
-    .cards {
-      margin-top: 24px;
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-      gap: 16px;
+      place-items: center;
+      background: #eef3f9;
+      color: #16304c;
+      font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
     }
-
     .card {
-      border: 1px solid var(--line);
-      border-radius: 16px;
-      background: #ffffffd9;
-      padding: 18px;
-      transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease;
+      border: 1px solid #d3dfeb;
+      background: #ffffff;
+      border-radius: 14px;
+      padding: 24px;
+      width: min(560px, 90vw);
+      box-shadow: 0 12px 24px rgba(22, 48, 76, 0.08);
     }
-
-    .card:hover {
-      transform: translateY(-3px);
-      border-color: #aac2d8;
-      box-shadow: 0 10px 24px rgba(35, 91, 133, 0.14);
-    }
-
-    .card h2 {
+    h1 {
       margin: 0 0 8px;
-      font-size: 18px;
-      color: #214a6b;
+      font-size: 24px;
     }
-
-    .card p {
+    p {
       margin: 0 0 14px;
-      color: var(--muted);
-      line-height: 1.6;
-      font-size: 14px;
+      color: #5e748a;
     }
-
-    .card a {
+    a {
       display: inline-block;
+      margin-right: 10px;
+      margin-bottom: 10px;
       text-decoration: none;
       color: #fff;
-      background: linear-gradient(135deg, var(--primary), var(--primary-2));
-      padding: 8px 14px;
-      border-radius: 10px;
-      font-size: 14px;
-      font-weight: 600;
+      background: #2d6ea4;
+      padding: 8px 12px;
+      border-radius: 8px;
     }
-
-    .quick-links {
-      margin-top: 14px;
-      font-size: 13px;
-      color: var(--muted);
-    }
-
-    .quick-links a {
-      color: #366f99;
-      text-decoration: none;
-      margin-right: 10px;
-    }
-
-    footer {
-      margin-top: 20px;
-      font-size: 13px;
-      color: #6f8499;
+    a.secondary {
+      background: #f4f8fc;
+      color: #16304c;
+      border: 1px solid #d3dfeb;
     }
   </style>
 </head>
 <body>
-  <main class="page">
-    <section class="hero">
-      <div class="brand">
-        <span class="brand-dot"></span>
-        <span>CityVisionLab</span>
-      </div>
-      <h1>WindowViewCapture Service</h1>
-      <p class="subtitle">
-        面向城市窗景数据采集的工作台：先在 3D 场景中完成窗户标注并导出 CSV，
-        再按配置批量生成窗景图像与压缩包，支持字段驱动命名输出。
-      </p>
-      <div class="service">
-        当前服务:
-        <strong>WindowViewCapture</strong>
-        <span class="status">online</span>
-      </div>
-    </section>
-
-    <section class="cards">
-      <article class="card">
-        <h2>1. Window Annotation</h2>
-        <p>在场景中点击窗户点位，编辑字段信息，导出标注 CSV。</p>
-        <a href="/Apps/myapp/GE_WongChukHung_annotation/GE3d_WongChuHung_annotation.html">进入标注页面</a>
-      </article>
-
-      <article class="card">
-        <h2>2. View Capture</h2>
-        <p>加载 CSV 后执行批量拍摄，按字段规则生成文件名并打包下载。</p>
-        <a href="/Apps/myapp/ViewGenerationImage/GE3d.html">进入拍照页面</a>
-      </article>
-    </section>
-
-    <div class="quick-links">
-      Quick Links:
-      <a href="/Apps/myapp/GE_WongChukHung_annotation/GE3d_WongChuHung_annotation.html">Annotation</a>
-      <a href="/Apps/myapp/ViewGenerationImage/GE3d.html">Capture</a>
-    </div>
-
-    <footer>
-      CityVisionLab · Cesium-based Web Toolkit
-    </footer>
+  <main class="card">
+    <h1>CityVisionLab</h1>
+    <p>Use unified routes to avoid exposing legacy file paths.</p>
+    <a href="/portal">Portal</a>
+    <a href="/workspace">Workspace</a>
+    <a class="secondary" href="/annotation">Annotation</a>
+    <a class="secondary" href="/capture">Capture</a>
   </main>
 </body>
 </html>

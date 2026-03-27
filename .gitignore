@@ -25,6 +25,8 @@ Apps/myapp/input/*
 !Apps/myapp/input/.gitkeep
 Apps/myapp/output/*
 !Apps/myapp/output/.gitkeep
+data/platform/
+deploy/docker/runtime/
 
 # Cesium sample apps (not part of this project)
 Apps/CesiumViewer/

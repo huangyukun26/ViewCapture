@@ -12,6 +12,7 @@ import yargs from "yargs";
 
 import ContextCache from "./scripts/ContextCache.js";
 import createRoute from "./scripts/createRoute.js";
+import { initializePlatformBackend } from "./services/platform/index.js";
 
 const argv = yargs(process.argv)
   .options({
@@ -160,6 +161,7 @@ async function generateDevelopmentBuild(buildTools) {
 
   const app = express();
   app.use(compression());
+  let platformBackend = null;
   //eslint-disable-next-line no-unused-vars
   app.use(function (req, res, next) {
     const requestOrigin = req.headers.origin;
@@ -227,18 +229,33 @@ async function generateDevelopmentBuild(buildTools) {
   ];
   app.get(knownTilesetFormats, checkGzipAndNext);
 
+  try {
+    platformBackend = await initializePlatformBackend(app);
+  } catch (error) {
+    console.error("[platform] failed to initialize backend:", error);
+    process.exit(1);
+  }
+
+  function sendAppFile(relativePath) {
+    return function (req, res) {
+      res.sendFile(path.resolve(relativePath));
+    };
+  }
+
   // Friendly entry routes
   app.get("/", function (req, res) {
+    res.sendFile(path.resolve("Apps", "myapp", "portal", "index.html"));
+  });
+  app.get("/portal", function (req, res) {
+    res.sendFile(path.resolve("Apps", "myapp", "portal", "index.html"));
+  });
+  app.get("/workspace", function (req, res) {
+    res.sendFile(path.resolve("Apps", "myapp", "portal", "workspace.html"));
+  });
+  app.get("/annotation", sendAppFile(path.join("Apps", "myapp", "portal", "annotation.html")));
+  app.get("/capture", sendAppFile(path.join("Apps", "myapp", "portal", "capture.html")));
+  app.get("/legacy-home", function (req, res) {
     res.redirect(302, "/Apps/myapp/index.html");
-  });
-  app.get("/annotation", function (req, res) {
-    res.redirect(
-      302,
-      "/Apps/myapp/GE_WongChukHung_annotation/GE3d_WongChuHung_annotation.html"
-    );
-  });
-  app.get("/capture", function (req, res) {
-    res.redirect(302, "/Apps/myapp/ViewGenerationImage/GE3d.html");
   });
 
   // List CSV files from Apps/myapp/input for client-side dropdowns
@@ -509,6 +526,9 @@ async function generateDevelopmentBuild(buildTools) {
 
   server.on("close", function () {
     console.log("Cesium development server stopped.");
+    platformBackend?.close?.().catch((error) => {
+      console.error("[platform] close error:", error);
+    });
     // eslint-disable-next-line n/no-process-exit
     process.exit(0);
   });
@@ -527,6 +547,10 @@ async function generateDevelopmentBuild(buildTools) {
         contexts.specs.dispose();
         contexts.testWorkers.dispose();
       }
+
+      platformBackend?.close?.().catch((error) => {
+        console.error("[platform] close error:", error);
+      });
 
       isFirstSig = false;
     } else {

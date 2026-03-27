@@ -1,0 +1,12 @@
+.git
+.github
+node_modules
+docker_images
+HKUSTGZ_3D_Download
+windowview_tool_USTGZ_0327
+coverage
+Build/Specs
+Build/Documentation
+*.log
+*.zip
+data/platform/store.json

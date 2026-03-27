@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CityVisionLab | WindowView Workspace</title>
+  <link rel="stylesheet" href="/Apps/myapp/portal/styles.css" />
+</head>
+<body>
+  <main class="cvl-shell">
+    <section class="cvl-card">
+      <header class="cvl-header">
+        <div>
+          <div class="cvl-brand">
+            <span class="cvl-dot"></span>
+            <span>CityVisionLab</span>
+          </div>
+          <h1 class="cvl-title">WindowView Unified Workspace</h1>
+          <p class="cvl-subtitle">
+            登录后在同一工作台完成项目管理、窗口标注和批量拍照，不再分散跳转。
+          </p>
+        </div>
+      </header>
+
+      <section class="auth-grid">
+        <article class="auth-panel">
+          <h2>登录</h2>
+          <div class="form-row">
+            <label for="loginUsername">用户名</label>
+            <input id="loginUsername" type="text" placeholder="例如: cityvision.user" />
+          </div>
+          <div class="form-row">
+            <label for="loginPassword">密码</label>
+            <input id="loginPassword" type="password" placeholder="至少 8 位" />
+          </div>
+          <button class="btn" id="loginBtn">登录 Workspace</button>
+          <div class="status-line" id="loginStatus"></div>
+        </article>
+
+        <article class="auth-panel">
+          <h2>注册</h2>
+          <div class="form-row">
+            <label for="registerUsername">用户名</label>
+            <input id="registerUsername" type="text" placeholder="3-32 位: a-z,0-9,._-" />
+          </div>
+          <div class="form-row">
+            <label for="registerPassword">密码</label>
+            <input id="registerPassword" type="password" placeholder="至少 8 位" />
+          </div>
+          <button class="btn secondary" id="registerBtn">创建账号</button>
+          <div class="status-line" id="registerStatus"></div>
+        </article>
+      </section>
+    </section>
+  </main>
+
+  <script type="module" src="/Apps/myapp/portal/login.js"></script>
+</body>
+</html>
