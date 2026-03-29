@@ -4,6 +4,7 @@ import { createPlatformStore } from "./store.js";
 import { createSessionStore } from "./session-store.js";
 import { createPlatformRouter } from "./router.js";
 import { hashPassword } from "./password.js";
+import { RuntimeConfigStore } from "./runtime-config.js";
 
 async function ensureBootstrapAdmin(store) {
   const username = String(
@@ -40,10 +41,21 @@ export async function initializePlatformBackend(app) {
   const redisUrl = process.env.PLATFORM_REDIS_URL || process.env.REDIS_URL || "";
   const sessions = await createSessionStore(redisUrl);
   const inputDir = path.resolve("Apps", "myapp", "input");
+  const runtimeConfig = new RuntimeConfigStore(
+    path.resolve("data", "platform", "runtime-config.json"),
+    {
+      aiBaseUrl:
+        process.env.PLATFORM_AI_BASE_URL ||
+        process.env.WINDOWVIEW_AI_URL ||
+        "http://127.0.0.1:5000",
+    }
+  );
+  await runtimeConfig.ensureLoaded();
   const router = createPlatformRouter({
     store,
     sessions,
     inputDir,
+    runtimeConfig,
   });
 
   app.use("/api/platform", router);

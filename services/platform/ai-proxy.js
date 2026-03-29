@@ -22,11 +22,24 @@ function getForwardPath(req) {
   return req.url || "/";
 }
 
-export function createAiProxyMiddleware(targetBaseUrl) {
-  const base = new URL(targetBaseUrl);
-  const transport = base.protocol === "https:" ? https : http;
-
+export function createAiProxyMiddleware(targetBaseUrlOrGetter) {
   return function aiProxyHandler(req, res) {
+    let base;
+    try {
+      const targetBaseUrl =
+        typeof targetBaseUrlOrGetter === "function"
+          ? targetBaseUrlOrGetter(req)
+          : targetBaseUrlOrGetter;
+      base = new URL(targetBaseUrl);
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: `AI backend config invalid: ${error.message}`,
+      });
+      return;
+    }
+
+    const transport = base.protocol === "https:" ? https : http;
     const requestPath = getForwardPath(req);
     const targetUrl = new URL(requestPath, base);
     const headers = { ...req.headers };

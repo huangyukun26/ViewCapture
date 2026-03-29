@@ -3,6 +3,11 @@ import { api, setStatusLine } from "/Apps/myapp/portal/common.js";
 const summaryBox = document.getElementById("summaryBox");
 const globalStatus = document.getElementById("globalStatus");
 
+const aiBaseUrlInput = document.getElementById("aiBaseUrlInput");
+const testAiConfigBtn = document.getElementById("testAiConfigBtn");
+const saveAiConfigBtn = document.getElementById("saveAiConfigBtn");
+const aiConfigStatus = document.getElementById("aiConfigStatus");
+
 const newUsername = document.getElementById("newUsername");
 const newPassword = document.getElementById("newPassword");
 const newUserRole = document.getElementById("newUserRole");
@@ -207,6 +212,11 @@ async function loadSummary() {
   renderSummary(data);
 }
 
+async function loadAiConfig() {
+  const data = await api("/api/platform/admin/ai-config");
+  aiBaseUrlInput.value = data.aiBaseUrl || "";
+}
+
 async function loadUsers() {
   const data = await api("/api/platform/admin/users");
   users = data.users || [];
@@ -234,10 +244,29 @@ async function loadJobs() {
 }
 
 async function reloadAll() {
-  await loadUsers();
-  await loadProjects();
+  await Promise.all([loadUsers(), loadProjects(), loadAiConfig()]);
   renderSelectors();
   await Promise.all([loadSummary(), loadJobs()]);
+}
+
+async function testAiConfigConnection() {
+  setStatusLine(aiConfigStatus, "Testing...");
+  const data = await api("/api/platform/admin/ai-config/test", {
+    method: "POST",
+  });
+  if (data.ok) {
+    setStatusLine(
+      aiConfigStatus,
+      `Connected: ${data.target} (HTTP ${data.status})`,
+      "success"
+    );
+  } else {
+    setStatusLine(
+      aiConfigStatus,
+      `Connection failed: ${data.error || `HTTP ${data.status}`}`,
+      "error"
+    );
+  }
 }
 
 createUserBtn.addEventListener("click", async () => {
@@ -489,6 +518,38 @@ resetJobFiltersBtn.addEventListener("click", async () => {
     setStatusLine(jobStatus, "Filters reset.", "success");
   } catch (error) {
     setStatusLine(jobStatus, error.message, "error");
+  }
+});
+
+saveAiConfigBtn.addEventListener("click", async () => {
+  const aiBaseUrl = aiBaseUrlInput.value.trim();
+  if (!aiBaseUrl) {
+    setStatusLine(aiConfigStatus, "AI base URL is required.", "error");
+    return;
+  }
+  saveAiConfigBtn.disabled = true;
+  try {
+    const data = await api("/api/platform/admin/ai-config", {
+      method: "PATCH",
+      body: JSON.stringify({ aiBaseUrl }),
+    });
+    aiBaseUrlInput.value = data.aiBaseUrl;
+    setStatusLine(aiConfigStatus, "AI config saved.", "success");
+  } catch (error) {
+    setStatusLine(aiConfigStatus, error.message, "error");
+  } finally {
+    saveAiConfigBtn.disabled = false;
+  }
+});
+
+testAiConfigBtn.addEventListener("click", async () => {
+  testAiConfigBtn.disabled = true;
+  try {
+    await testAiConfigConnection();
+  } catch (error) {
+    setStatusLine(aiConfigStatus, error.message, "error");
+  } finally {
+    testAiConfigBtn.disabled = false;
   }
 });
 

@@ -10,6 +10,16 @@ Unified web workspace for:
 
 All modules are served from the same Node server (`server.js`), with clean public routes.
 
+## Highlights (Current)
+
+- Workspace keeps annotation/capture/analysis/admin inside one page via in-page module switching.
+- Semantic analysis module supports:
+  - image upload
+  - CSV upload (including folder selection)
+  - job queue polling
+  - result inspection and JSON export
+- Admin supports full CRUD for users/projects/jobs and runtime AI backend URL configuration.
+
 ## 1. Local Start
 
 From repo root:
@@ -56,22 +66,39 @@ Mounted at `/api/platform`:
 - `POST /projects`
 - `PATCH /projects/:projectId`
 - `DELETE /projects/:projectId`
-- `GET /datasets/csv`
 - `GET /jobs`
 - `POST /jobs`
 - `PATCH /jobs/:jobId/status`
 - `GET /admin/summary`
 - `GET /admin/users`
+- `POST /admin/users`
+- `PATCH /admin/users/:userId`
 - `PATCH /admin/users/:userId/role`
+- `DELETE /admin/users/:userId`
+- `GET /admin/projects`
+- `POST /admin/projects`
+- `PATCH /admin/projects/:projectId`
+- `DELETE /admin/projects/:projectId`
 - `GET /admin/jobs`
+- `PATCH /admin/jobs/:jobId`
+- `DELETE /admin/jobs/:jobId`
+- `GET /admin/ai-config`
+- `PATCH /admin/ai-config`
+- `POST /admin/ai-config/test`
 
 AI backend proxy (requires login):
 
-- `/api/platform/ai/*` -> forwards to `PLATFORM_AI_BASE_URL` (default `http://127.0.0.1:5000`)
+- `/api/platform/ai/*` -> forwards to runtime AI URL (default `http://127.0.0.1:5000`)
 - examples:
   - `POST /api/platform/ai/upload`
   - `POST /api/platform/ai/upload_csv`
   - `GET /api/platform/ai/job/:jobId/status`
+
+GPU service handoff:
+
+- You can keep current CPU backend first.
+- When GPU server is ready, admin can update AI URL in `/admin` page without redeploy.
+- Runtime config persists at `data/platform/runtime-config.json`.
 
 Storage backend selection:
 
@@ -90,7 +117,7 @@ Bootstrap admin (optional, defaults provided):
 
 Important:
 
-- CSV workflow is browser-local now. Users should load CSV files/folders from web file picker in the Capture page.
+- CSV workflow is browser-local now. Users should load CSV files/folders from web file picker.
 - Workspace no longer depends on server-side `Apps/myapp/input` listing.
 
 ## 4. Docker Full Stack (Cloud)

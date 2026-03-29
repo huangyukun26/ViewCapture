@@ -6,6 +6,7 @@ import express from "express";
 import { generateSessionToken } from "./session-store.js";
 import { hashPassword, verifyPassword } from "./password.js";
 import { createAiProxyMiddleware } from "./ai-proxy.js";
+import { parseAndNormalizeAiBaseUrl } from "./runtime-config.js";
 
 const SESSION_COOKIE_NAME = "cvl_session";
 const SESSION_TTL_SECONDS = 7 * 24 * 60 * 60;
@@ -105,10 +106,14 @@ async function listCsvFiles(inputDir) {
   }
 }
 
-export function createPlatformRouter({ store, sessions, inputDir }) {
+export function createPlatformRouter({ store, sessions, inputDir, runtimeConfig }) {
   const router = express.Router();
-  const aiBaseUrl =
-    process.env.PLATFORM_AI_BASE_URL || process.env.WINDOWVIEW_AI_URL || "http://127.0.0.1:5000";
+  const getAiBaseUrl = () => {
+    if (runtimeConfig?.getAiBaseUrl) {
+      return runtimeConfig.getAiBaseUrl();
+    }
+    return process.env.PLATFORM_AI_BASE_URL || process.env.WINDOWVIEW_AI_URL || "http://127.0.0.1:5000";
+  };
 
   async function requireAuth(req, res, next) {
     const token = getSessionToken(req);
@@ -151,7 +156,7 @@ export function createPlatformRouter({ store, sessions, inputDir }) {
     });
   });
 
-  router.use("/ai", requireAuth, createAiProxyMiddleware(aiBaseUrl));
+  router.use("/ai", requireAuth, createAiProxyMiddleware(() => getAiBaseUrl()));
   router.use(express.json({ limit: "2mb" }));
 
   router.post("/auth/register", async (req, res) => {
@@ -408,7 +413,7 @@ export function createPlatformRouter({ store, sessions, inputDir }) {
       success: true,
       data: {
         apiVersion: "v1",
-        aiBaseUrl,
+        aiBaseUrl: getAiBaseUrl(),
         user: req.auth.user,
         csvCount: csvFiles.length,
       },
@@ -762,6 +767,74 @@ export function createPlatformRouter({ store, sessions, inputDir }) {
     } catch (error) {
       console.error("[platform] admin delete job error:", error);
       return sendError(res, 500, "Failed to delete job.");
+    }
+  });
+
+  router.get("/admin/ai-config", requireAuth, requireAdmin, async (req, res) => {
+    return res.json({
+      success: true,
+      data: {
+        aiBaseUrl: getAiBaseUrl(),
+      },
+    });
+  });
+
+  router.patch("/admin/ai-config", requireAuth, requireAdmin, async (req, res) => {
+    if (!runtimeConfig?.setAiBaseUrl) {
+      return sendError(res, 400, "Runtime AI config is not enabled.");
+    }
+    try {
+      const aiBaseUrl = parseAndNormalizeAiBaseUrl(req.body?.aiBaseUrl);
+      const saved = await runtimeConfig.setAiBaseUrl(aiBaseUrl);
+      return res.json({
+        success: true,
+        data: {
+          aiBaseUrl: saved,
+        },
+      });
+    } catch (error) {
+      return sendError(res, 400, error.message || "Invalid AI base URL.");
+    }
+  });
+
+  router.post("/admin/ai-config/test", requireAuth, requireAdmin, async (req, res) => {
+    const timeoutMs = 6000;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const aiBaseUrl = getAiBaseUrl();
+      const target = `${aiBaseUrl}/health`;
+      const response = await fetch(target, {
+        method: "GET",
+        signal: controller.signal,
+      });
+      let body = null;
+      try {
+        body = await response.json();
+      } catch {
+        body = null;
+      }
+      return res.json({
+        success: true,
+        data: {
+          aiBaseUrl,
+          target,
+          ok: response.ok,
+          status: response.status,
+          body,
+        },
+      });
+    } catch (error) {
+      return res.json({
+        success: true,
+        data: {
+          aiBaseUrl: getAiBaseUrl(),
+          ok: false,
+          error: error.name === "AbortError" ? "timeout" : error.message,
+        },
+      });
+    } finally {
+      clearTimeout(timeout);
     }
   });
 
