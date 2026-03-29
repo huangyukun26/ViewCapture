@@ -16,7 +16,6 @@
       <div class="cvl-subtitle" id="userInfo">Loading user...</div>
     </div>
     <div class="actions">
-      <a class="btn secondary" href="/portal">返回登录页</a>
       <button class="btn danger" id="logoutBtn">退出登录</button>
     </div>
   </header>
@@ -36,11 +35,6 @@
       <div class="status-line" id="projectStatus"></div>
       <div class="project-list" id="projectList"></div>
 
-      <h3 style="margin-top:14px;">数据说明</h3>
-      <div class="item" style="border:1px solid #d4e0ed; border-radius:10px; background:#fff;">
-        CSV 统一采用浏览器本地选择文件/文件夹方式，不再依赖服务器 input 目录。
-      </div>
-
       <h3 style="margin-top:14px;">任务记录</h3>
       <button class="btn secondary" id="refreshJobsBtn">刷新任务</button>
       <button class="btn secondary" id="createJobBtn">记录当前任务</button>
@@ -50,23 +44,30 @@
 
     <section class="workspace-main">
       <div class="main-toolbar">
-        <strong>工具入口</strong>
-        <button class="btn" id="openAnnotationBtn">标注模块</button>
-        <button class="btn" id="openCaptureBtn">拍照模块</button>
-        <button class="btn" id="openAnalysisBtn">语义分析</button>
-        <button class="btn secondary" id="openAdminBtn" style="display:none;">管理后台</button>
-        <button class="btn secondary" id="openAnnotationTabBtn">新标签打开标注</button>
-        <button class="btn secondary" id="openCaptureTabBtn">新标签打开拍照</button>
-        <button class="btn secondary" id="openAnalysisTabBtn">新标签打开语义分析</button>
-        <button class="btn secondary" id="openAdminTabBtn" style="display:none;">新标签打开管理后台</button>
+        <strong>工作台</strong>
+        <button class="btn" id="openAnnotationBtn">窗口标注</button>
+        <button class="btn secondary" id="openCaptureBtn">批量拍照</button>
         <span class="status-line" id="workspaceStatus"></span>
       </div>
-      <div class="iframe-wrap">
-        <iframe id="toolFrame" src="/annotation?embed=1"></iframe>
+
+      <div class="iframe-wrap iframe-stack">
+        <iframe
+          id="annotationFrame"
+          class="tool-frame active"
+          src="/Apps/myapp/GE_WongChukHung_annotation/GE3d_WongChuHung_annotation.html"
+          loading="eager"
+        ></iframe>
+        <iframe
+          id="captureFrame"
+          class="tool-frame"
+          data-src="/Apps/myapp/ViewGenerationImage/GE3d.html"
+          src="about:blank"
+          loading="lazy"
+        ></iframe>
       </div>
     </section>
   </main>
 
-  <script type="module" src="/Apps/myapp/portal/workspace.js?v=20260327fix1"></script>
+  <script type="module" src="/Apps/myapp/portal/workspace.js?v=20260329p2"></script>
 </body>
 </html>

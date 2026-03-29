@@ -1,4 +1,4 @@
-﻿import { api, setStatusLine } from "/Apps/myapp/portal/common.js";
+import { api, setStatusLine } from "/Apps/myapp/portal/common.js";
 
 const userInfo = document.getElementById("userInfo");
 const logoutBtn = document.getElementById("logoutBtn");
@@ -16,27 +16,15 @@ const jobList = document.getElementById("jobList");
 
 const openAnnotationBtn = document.getElementById("openAnnotationBtn");
 const openCaptureBtn = document.getElementById("openCaptureBtn");
-const openAnalysisBtn = document.getElementById("openAnalysisBtn");
-const openAdminBtn = document.getElementById("openAdminBtn");
-const openAnnotationTabBtn = document.getElementById("openAnnotationTabBtn");
-const openCaptureTabBtn = document.getElementById("openCaptureTabBtn");
-const openAnalysisTabBtn = document.getElementById("openAnalysisTabBtn");
-const openAdminTabBtn = document.getElementById("openAdminTabBtn");
 const workspaceStatus = document.getElementById("workspaceStatus");
-const toolFrame = document.getElementById("toolFrame");
+const annotationFrame = document.getElementById("annotationFrame");
+const captureFrame = document.getElementById("captureFrame");
 
 let currentUser = null;
 let projects = [];
 let selectedProjectId = "";
 let currentModule = "annotation";
-
-function bindClick(element, handler, elementName) {
-  if (!element) {
-    console.warn(`[workspace] missing element: ${elementName}`);
-    return;
-  }
-  element.addEventListener("click", handler);
-}
+let captureLoaded = false;
 
 function selectProject(projectId) {
   selectedProjectId = projectId;
@@ -100,24 +88,39 @@ async function loadJobs() {
     .join("");
 }
 
-function setToolModule(moduleName) {
-  currentModule = moduleName;
-  if (!toolFrame) {
+function ensureCaptureFrameLoaded() {
+  if (captureLoaded || !captureFrame) {
     return;
   }
-  if (moduleName === "annotation") {
-    toolFrame.src = "/annotation?embed=1";
-    setStatusLine(workspaceStatus, "当前模块: Window Annotation");
-  } else if (moduleName === "analysis") {
-    toolFrame.src = "/analysis?embed=1";
-    setStatusLine(workspaceStatus, "当前模块: WindowView Semantic Analysis");
-  } else if (moduleName === "admin") {
-    toolFrame.src = "/admin?embed=1";
-    setStatusLine(workspaceStatus, "当前模块: Admin Dashboard");
-  } else {
-    toolFrame.src = "/capture?embed=1";
-    setStatusLine(workspaceStatus, "当前模块: View Capture");
+  const src = captureFrame.dataset.src;
+  if (src) {
+    captureFrame.src = src;
+    captureLoaded = true;
   }
+}
+
+function setToolModule(moduleName) {
+  currentModule = moduleName;
+  if (!annotationFrame || !captureFrame) {
+    return;
+  }
+
+  if (moduleName === "capture") {
+    ensureCaptureFrameLoaded();
+    annotationFrame.classList.remove("active");
+    captureFrame.classList.add("active");
+    openAnnotationBtn.classList.remove("secondary");
+    openCaptureBtn.classList.remove("secondary");
+    openAnnotationBtn.classList.add("secondary");
+    setStatusLine(workspaceStatus, "当前模块: 批量拍照");
+    return;
+  }
+
+  annotationFrame.classList.add("active");
+  captureFrame.classList.remove("active");
+  openCaptureBtn.classList.add("secondary");
+  openAnnotationBtn.classList.remove("secondary");
+  setStatusLine(workspaceStatus, "当前模块: 窗口标注");
 }
 
 async function bootstrap() {
@@ -127,148 +130,108 @@ async function bootstrap() {
     if (userInfo) {
       userInfo.textContent = `当前用户: ${currentUser.username} (${currentUser.role})`;
     }
-    const isAdmin = currentUser.role === "admin";
-    if (openAdminBtn) {
-      openAdminBtn.style.display = isAdmin ? "inline-block" : "none";
-    }
-    if (openAdminTabBtn) {
-      openAdminTabBtn.style.display = isAdmin ? "inline-block" : "none";
-    }
-  } catch (error) {
+  } catch {
     window.location.href = "/portal";
     return;
   }
 
-  await Promise.all([loadProjects(), loadJobs()]);
   setToolModule("annotation");
-}
 
-bindClick(
-  createProjectBtn,
-  async () => {
-    setStatusLine(projectStatus, "");
-    if (!projectName || !projectDescription) {
-      setStatusLine(projectStatus, "Project form is not ready.", "error");
-      return;
-    }
-    const name = projectName.value.trim();
-    const description = projectDescription.value.trim();
-    if (!name) {
-      setStatusLine(projectStatus, "Project name 不能为空。", "error");
-      return;
-    }
-    createProjectBtn.disabled = true;
-    try {
-      const data = await api("/api/platform/projects", {
-        method: "POST",
-        body: JSON.stringify({ name, description }),
-      });
-      projects.unshift(data.project);
-      selectedProjectId = data.project.id;
-      renderProjects();
-      projectName.value = "";
-      projectDescription.value = "";
-      setStatusLine(projectStatus, "项目创建成功。", "success");
-    } catch (error) {
-      setStatusLine(projectStatus, error.message, "error");
-    } finally {
-      createProjectBtn.disabled = false;
-    }
-  },
-  "createProjectBtn"
-);
-
-if (projectList) {
-  projectList.addEventListener("click", (event) => {
-    const item = event.target.closest("[data-project-id]");
-    if (!item) {
-      return;
-    }
-    selectProject(item.dataset.projectId);
-    loadJobs().catch((error) => {
-      setStatusLine(jobStatus, error.message, "error");
-    });
+  loadProjects().catch((error) => {
+    setStatusLine(projectStatus, error.message, "error");
   });
+  loadJobs().catch((error) => {
+    setStatusLine(jobStatus, error.message, "error");
+  });
+
+  // Warm up capture module after the workspace is interactive.
+  window.setTimeout(() => {
+    ensureCaptureFrameLoaded();
+  }, 2500);
 }
 
-bindClick(
-  refreshJobsBtn,
-  () => {
-    loadJobs().catch((error) => {
-      setStatusLine(jobStatus, error.message, "error");
+createProjectBtn?.addEventListener("click", async () => {
+  setStatusLine(projectStatus, "");
+  const name = projectName?.value.trim() || "";
+  const description = projectDescription?.value.trim() || "";
+  if (!name) {
+    setStatusLine(projectStatus, "Project name 不能为空。", "error");
+    return;
+  }
+  createProjectBtn.disabled = true;
+  try {
+    const data = await api("/api/platform/projects", {
+      method: "POST",
+      body: JSON.stringify({ name, description }),
     });
-  },
-  "refreshJobsBtn"
-);
+    projects.unshift(data.project);
+    selectedProjectId = data.project.id;
+    renderProjects();
+    projectName.value = "";
+    projectDescription.value = "";
+    setStatusLine(projectStatus, "项目创建成功。", "success");
+  } catch (error) {
+    setStatusLine(projectStatus, error.message, "error");
+  } finally {
+    createProjectBtn.disabled = false;
+  }
+});
 
-bindClick(
-  createJobBtn,
-  async () => {
-    setStatusLine(jobStatus, "");
-    if (!selectedProjectId) {
-      setStatusLine(jobStatus, "请先创建或选择一个项目。", "error");
-      return;
-    }
-    try {
-      const payload = {
-        module: currentModule,
-        recordedAt: new Date().toISOString(),
-        note: "Manual record from unified workspace",
-      };
-      await api("/api/platform/jobs", {
-        method: "POST",
-        body: JSON.stringify({
-          projectId: selectedProjectId,
-          type: currentModule,
-          payload,
-        }),
-      });
-      setStatusLine(jobStatus, "已记录任务。", "success");
-      await loadJobs();
-    } catch (error) {
-      setStatusLine(jobStatus, error.message, "error");
-    }
-  },
-  "createJobBtn"
-);
+projectList?.addEventListener("click", (event) => {
+  const item = event.target.closest("[data-project-id]");
+  if (!item) {
+    return;
+  }
+  selectProject(item.dataset.projectId);
+  loadJobs().catch((error) => {
+    setStatusLine(jobStatus, error.message, "error");
+  });
+});
 
-bindClick(openAnnotationBtn, () => setToolModule("annotation"), "openAnnotationBtn");
-bindClick(openCaptureBtn, () => setToolModule("capture"), "openCaptureBtn");
-bindClick(openAnalysisBtn, () => setToolModule("analysis"), "openAnalysisBtn");
-bindClick(openAdminBtn, () => setToolModule("admin"), "openAdminBtn");
-bindClick(
-  openAnnotationTabBtn,
-  () => window.open("/annotation", "_blank", "noopener,noreferrer"),
-  "openAnnotationTabBtn"
-);
-bindClick(
-  openCaptureTabBtn,
-  () => window.open("/capture", "_blank", "noopener,noreferrer"),
-  "openCaptureTabBtn"
-);
-bindClick(
-  openAnalysisTabBtn,
-  () => window.open("/analysis", "_blank", "noopener,noreferrer"),
-  "openAnalysisTabBtn"
-);
-bindClick(
-  openAdminTabBtn,
-  () => window.open("/admin", "_blank", "noopener,noreferrer"),
-  "openAdminTabBtn"
-);
+refreshJobsBtn?.addEventListener("click", () => {
+  loadJobs().catch((error) => {
+    setStatusLine(jobStatus, error.message, "error");
+  });
+});
 
-bindClick(
-  logoutBtn,
-  async () => {
-    try {
-      await api("/api/platform/auth/logout", { method: "POST" });
-    } catch {
-      // no-op
-    } finally {
-      window.location.href = "/portal";
-    }
-  },
-  "logoutBtn"
-);
+createJobBtn?.addEventListener("click", async () => {
+  setStatusLine(jobStatus, "");
+  if (!selectedProjectId) {
+    setStatusLine(jobStatus, "请先创建或选择一个项目。", "error");
+    return;
+  }
+  try {
+    const payload = {
+      module: currentModule,
+      recordedAt: new Date().toISOString(),
+      note: "Manual record from unified workspace",
+    };
+    await api("/api/platform/jobs", {
+      method: "POST",
+      body: JSON.stringify({
+        projectId: selectedProjectId,
+        type: currentModule,
+        payload,
+      }),
+    });
+    setStatusLine(jobStatus, "已记录任务。", "success");
+    await loadJobs();
+  } catch (error) {
+    setStatusLine(jobStatus, error.message, "error");
+  }
+});
+
+openAnnotationBtn?.addEventListener("click", () => setToolModule("annotation"));
+openCaptureBtn?.addEventListener("click", () => setToolModule("capture"));
+
+logoutBtn?.addEventListener("click", async () => {
+  try {
+    await api("/api/platform/auth/logout", { method: "POST" });
+  } catch {
+    // no-op
+  } finally {
+    window.location.href = "/portal";
+  }
+});
 
 bootstrap();
