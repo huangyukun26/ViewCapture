@@ -11,9 +11,9 @@
     <div>
       <div class="cvl-brand">
         <span class="cvl-dot"></span>
-        <span>CityVisionLab Admin Dashboard</span>
+        <span>CityVisionLab Admin</span>
       </div>
-      <div class="cvl-subtitle">统一管理用户、项目与任务状态</div>
+      <div class="cvl-subtitle">管理员可查看并管理用户、项目、任务</div>
     </div>
     <div class="actions">
       <a class="btn secondary" href="/workspace">返回 Workspace</a>
@@ -21,23 +21,53 @@
   </header>
 
   <main class="cvl-shell">
-    <section class="cvl-card" style="padding:16px;">
-      <h3 style="margin:0 0 10px;">系统摘要</h3>
+    <section class="cvl-card" style="padding:16px; margin-bottom:14px;">
+      <h3 style="margin:0 0 8px;">系统概览</h3>
       <div id="summaryBox" class="status-line">Loading...</div>
+      <div id="globalStatus" class="status-line"></div>
     </section>
 
-    <section class="cvl-card" style="padding:16px; margin-top:14px;">
+    <section class="cvl-card" style="padding:16px; margin-bottom:14px;">
       <h3 style="margin:0 0 10px;">用户管理</h3>
-      <div id="usersBox" class="project-list"></div>
+      <div style="display:grid; grid-template-columns: 1.2fr 1.2fr 0.8fr auto; gap:8px; margin-bottom:10px;">
+        <input id="newUsername" type="text" placeholder="username (3-32)" />
+        <input id="newPassword" type="password" placeholder="password (>=8)" />
+        <select id="newUserRole">
+          <option value="user">user</option>
+          <option value="admin">admin</option>
+        </select>
+        <button class="btn" id="createUserBtn">新增用户</button>
+      </div>
+      <div id="userStatus" class="status-line"></div>
+      <div id="usersBox" class="project-list" style="max-height:360px;"></div>
     </section>
 
-    <section class="cvl-card" style="padding:16px; margin-top:14px;">
-      <h3 style="margin:0 0 10px;">近期任务</h3>
+    <section class="cvl-card" style="padding:16px; margin-bottom:14px;">
+      <h3 style="margin:0 0 10px;">项目管理</h3>
+      <div style="display:grid; grid-template-columns: 1.1fr 0.8fr 1.4fr auto; gap:8px; margin-bottom:10px;">
+        <input id="newProjectName" type="text" maxlength="100" placeholder="Project name (2-100)" />
+        <select id="newProjectOwner"></select>
+        <input id="newProjectDescription" type="text" placeholder="Description" />
+        <button class="btn" id="createProjectBtn">新增项目</button>
+      </div>
+      <div id="projectStatus" class="status-line"></div>
+      <div id="projectsBox" class="project-list" style="max-height:360px;"></div>
+    </section>
+
+    <section class="cvl-card" style="padding:16px;">
+      <h3 style="margin:0 0 10px;">任务管理</h3>
+      <div style="display:grid; grid-template-columns: 0.9fr 1.2fr auto auto; gap:8px; margin-bottom:10px;">
+        <select id="jobFilterUser"></select>
+        <select id="jobFilterProject"></select>
+        <button class="btn secondary" id="refreshJobsBtn">刷新任务</button>
+        <button class="btn secondary" id="resetJobFiltersBtn">重置筛选</button>
+      </div>
+      <div id="jobStatus" class="status-line"></div>
       <div id="jobsBox" class="job-list" style="max-height:420px;"></div>
     </section>
   </main>
 
-  <script type="module" src="/Apps/myapp/portal/admin.js"></script>
+  <script type="module" src="/Apps/myapp/portal/admin.js?v=20260329admincrud"></script>
   <script>
     const params = new URLSearchParams(window.location.search);
     if (params.get("embed") === "1") {

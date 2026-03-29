@@ -56,6 +56,24 @@ function isValidPassword(password) {
   return typeof password === "string" && password.length >= 8;
 }
 
+function parsePositiveInt(value) {
+  const parsed = Number.parseInt(String(value || ""), 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return null;
+  }
+  return parsed;
+}
+
+function normalizeRole(value) {
+  const role = String(value || "")
+    .trim()
+    .toLowerCase();
+  if (role === "admin" || role === "user") {
+    return role;
+  }
+  return "";
+}
+
 function getCookieOptions() {
   const secure =
     process.env.PLATFORM_COOKIE_SECURE === "1" ||
@@ -410,40 +428,290 @@ export function createPlatformRouter({ store, sessions, inputDir }) {
     }
   });
 
-  router.patch(
-    "/admin/users/:userId/role",
-    requireAuth,
-    requireAdmin,
-    async (req, res) => {
-      try {
-        const userId = Number.parseInt(req.params.userId, 10);
-        if (!Number.isFinite(userId) || userId <= 0) {
-          return sendError(res, 400, "Invalid userId.");
-        }
-        const role = String(req.body?.role || "").trim();
-        if (role !== "admin" && role !== "user") {
-          return sendError(res, 400, "Role must be admin or user.");
-        }
-        const user = await store.setUserRole({ userId, role });
-        if (!user) {
-          return sendError(res, 404, "User not found.");
-        }
-        return res.json({
-          success: true,
-          data: { user },
-        });
-      } catch (error) {
-        console.error("[platform] update role error:", error);
-        return sendError(res, 500, "Failed to update role.");
+  router.post("/admin/users", requireAuth, requireAdmin, async (req, res) => {
+    try {
+      const username = normalizeUsername(req.body?.username);
+      const password = String(req.body?.password || "");
+      const role = normalizeRole(req.body?.role) || "user";
+
+      if (!isValidUsername(username)) {
+        return sendError(res, 400, "Invalid username.");
       }
+      if (!isValidPassword(password)) {
+        return sendError(res, 400, "Password must be at least 8 characters.");
+      }
+
+      const existing = await store.getUserByUsername(username);
+      if (existing) {
+        return sendError(res, 409, "Username already exists.");
+      }
+
+      const user = await store.createUser({
+        username,
+        passwordHash: hashPassword(password),
+        role,
+      });
+
+      return res.json({
+        success: true,
+        data: { user },
+      });
+    } catch (error) {
+      console.error("[platform] create admin user error:", error);
+      if (error.code === "DUPLICATE_USERNAME" || error.code === "23505") {
+        return sendError(res, 409, "Username already exists.");
+      }
+      return sendError(res, 500, "Failed to create user.");
     }
-  );
+  });
+
+  router.patch("/admin/users/:userId", requireAuth, requireAdmin, async (req, res) => {
+    try {
+      const userId = parsePositiveInt(req.params.userId);
+      if (!userId) {
+        return sendError(res, 400, "Invalid userId.");
+      }
+
+      const target = await store.getUserById(userId);
+      if (!target) {
+        return sendError(res, 404, "User not found.");
+      }
+
+      const nextRole = normalizeRole(req.body?.role);
+      if (nextRole && target.role === "admin" && nextRole !== "admin") {
+        const users = await store.listUsers();
+        const adminCount = users.filter((u) => u.role === "admin").length;
+        if (adminCount <= 1) {
+          return sendError(res, 400, "Cannot demote the last admin.");
+        }
+      }
+
+      let passwordHash = "";
+      if (typeof req.body?.password === "string" && req.body.password.trim()) {
+        if (!isValidPassword(req.body.password)) {
+          return sendError(res, 400, "Password must be at least 8 characters.");
+        }
+        passwordHash = hashPassword(req.body.password);
+      }
+
+      const username =
+        typeof req.body?.username === "string" ? normalizeUsername(req.body.username) : "";
+      if (username && !isValidUsername(username)) {
+        return sendError(res, 400, "Invalid username.");
+      }
+
+      const user = await store.updateUser({
+        userId,
+        username: username || undefined,
+        passwordHash: passwordHash || undefined,
+        role: nextRole || undefined,
+      });
+      if (!user) {
+        return sendError(res, 404, "User not found.");
+      }
+      return res.json({
+        success: true,
+        data: { user },
+      });
+    } catch (error) {
+      console.error("[platform] update user error:", error);
+      if (error.code === "DUPLICATE_USERNAME" || error.code === "23505") {
+        return sendError(res, 409, "Username already exists.");
+      }
+      return sendError(res, 500, "Failed to update user.");
+    }
+  });
+
+  router.patch("/admin/users/:userId/role", requireAuth, requireAdmin, async (req, res) => {
+    try {
+      const userId = parsePositiveInt(req.params.userId);
+      const role = normalizeRole(req.body?.role);
+      if (!userId) {
+        return sendError(res, 400, "Invalid userId.");
+      }
+      if (!role) {
+        return sendError(res, 400, "Role must be admin or user.");
+      }
+
+      const target = await store.getUserById(userId);
+      if (!target) {
+        return sendError(res, 404, "User not found.");
+      }
+
+      if (target.role === "admin" && role !== "admin") {
+        const users = await store.listUsers();
+        const adminCount = users.filter((u) => u.role === "admin").length;
+        if (adminCount <= 1) {
+          return sendError(res, 400, "Cannot demote the last admin.");
+        }
+      }
+
+      const user = await store.updateUser({ userId, role });
+      if (!user) {
+        return sendError(res, 404, "User not found.");
+      }
+
+      return res.json({
+        success: true,
+        data: { user },
+      });
+    } catch (error) {
+      console.error("[platform] update role error:", error);
+      return sendError(res, 500, "Failed to update role.");
+    }
+  });
+
+  router.delete("/admin/users/:userId", requireAuth, requireAdmin, async (req, res) => {
+    try {
+      const userId = parsePositiveInt(req.params.userId);
+      if (!userId) {
+        return sendError(res, 400, "Invalid userId.");
+      }
+      const target = await store.getUserById(userId);
+      if (!target) {
+        return sendError(res, 404, "User not found.");
+      }
+
+      if (target.role === "admin") {
+        const users = await store.listUsers();
+        const adminCount = users.filter((u) => u.role === "admin").length;
+        if (adminCount <= 1) {
+          return sendError(res, 400, "Cannot delete the last admin.");
+        }
+      }
+      if (req.auth.user.id === userId) {
+        return sendError(res, 400, "Cannot delete current login user.");
+      }
+
+      const deleted = await store.deleteUser(userId);
+      if (!deleted) {
+        return sendError(res, 404, "User not found.");
+      }
+      return res.json({ success: true });
+    } catch (error) {
+      console.error("[platform] delete user error:", error);
+      return sendError(res, 500, "Failed to delete user.");
+    }
+  });
+
+  router.get("/admin/projects", requireAuth, requireAdmin, async (req, res) => {
+    try {
+      const ownerUserId = parsePositiveInt(req.query.ownerUserId);
+      let projects = await store.listAllProjects();
+      if (ownerUserId) {
+        projects = projects.filter((item) => item.ownerUserId === ownerUserId);
+      }
+      return res.json({
+        success: true,
+        data: { projects },
+      });
+    } catch (error) {
+      console.error("[platform] list admin projects error:", error);
+      return sendError(res, 500, "Failed to list projects.");
+    }
+  });
+
+  router.post("/admin/projects", requireAuth, requireAdmin, async (req, res) => {
+    try {
+      const ownerUserId = parsePositiveInt(req.body?.ownerUserId);
+      const name = String(req.body?.name || "").trim();
+      const description = String(req.body?.description || "").trim();
+      if (!ownerUserId) {
+        return sendError(res, 400, "ownerUserId is required.");
+      }
+      if (name.length < 2 || name.length > 100) {
+        return sendError(res, 400, "Project name must be 2-100 characters.");
+      }
+      const owner = await store.getUserById(ownerUserId);
+      if (!owner) {
+        return sendError(res, 404, "Owner user not found.");
+      }
+
+      const project = await store.createProject({
+        name,
+        description,
+        ownerUserId,
+      });
+      const mergedProject = {
+        ...project,
+        ownerUsername: owner.username,
+      };
+      return res.json({
+        success: true,
+        data: { project: mergedProject },
+      });
+    } catch (error) {
+      console.error("[platform] create admin project error:", error);
+      return sendError(res, 500, "Failed to create project.");
+    }
+  });
+
+  router.patch("/admin/projects/:projectId", requireAuth, requireAdmin, async (req, res) => {
+    try {
+      const projectId = String(req.params.projectId || "").trim();
+      if (!projectId) {
+        return sendError(res, 400, "Invalid projectId.");
+      }
+      let ownerUserId = undefined;
+      if (typeof req.body?.ownerUserId !== "undefined") {
+        ownerUserId = parsePositiveInt(req.body.ownerUserId);
+        if (!ownerUserId) {
+          return sendError(res, 400, "Invalid ownerUserId.");
+        }
+        const owner = await store.getUserById(ownerUserId);
+        if (!owner) {
+          return sendError(res, 404, "Owner user not found.");
+        }
+      }
+      const project = await store.adminUpdateProject({
+        projectId,
+        name: req.body?.name,
+        description: req.body?.description,
+        ownerUserId,
+      });
+      if (!project) {
+        return sendError(res, 404, "Project not found.");
+      }
+      return res.json({
+        success: true,
+        data: { project },
+      });
+    } catch (error) {
+      console.error("[platform] update admin project error:", error);
+      return sendError(res, 500, "Failed to update project.");
+    }
+  });
+
+  router.delete("/admin/projects/:projectId", requireAuth, requireAdmin, async (req, res) => {
+    try {
+      const projectId = String(req.params.projectId || "").trim();
+      if (!projectId) {
+        return sendError(res, 400, "Invalid projectId.");
+      }
+      const deleted = await store.adminDeleteProject(projectId);
+      if (!deleted) {
+        return sendError(res, 404, "Project not found.");
+      }
+      return res.json({ success: true });
+    } catch (error) {
+      console.error("[platform] delete admin project error:", error);
+      return sendError(res, 500, "Failed to delete project.");
+    }
+  });
 
   router.get("/admin/jobs", requireAuth, requireAdmin, async (req, res) => {
     try {
       const limit = Number.parseInt(String(req.query.limit || "200"), 10);
       const safeLimit = Number.isFinite(limit) && limit > 0 ? Math.min(limit, 1000) : 200;
-      const jobs = await store.listAllJobs(safeLimit);
+      const userId = parsePositiveInt(req.query.userId);
+      const projectId = String(req.query.projectId || "").trim();
+      let jobs = await store.listAllJobs(safeLimit);
+      if (userId) {
+        jobs = jobs.filter((item) => item.userId === userId);
+      }
+      if (projectId) {
+        jobs = jobs.filter((item) => item.projectId === projectId);
+      }
       return res.json({
         success: true,
         data: { jobs },
@@ -454,20 +722,60 @@ export function createPlatformRouter({ store, sessions, inputDir }) {
     }
   });
 
+  router.patch("/admin/jobs/:jobId", requireAuth, requireAdmin, async (req, res) => {
+    try {
+      const jobId = parsePositiveInt(req.params.jobId);
+      if (!jobId) {
+        return sendError(res, 400, "Invalid jobId.");
+      }
+      const job = await store.adminUpdateJob({
+        jobId,
+        status: req.body?.status,
+        message: req.body?.message,
+        outputPath: req.body?.outputPath,
+        type: req.body?.type,
+      });
+      if (!job) {
+        return sendError(res, 404, "Job not found.");
+      }
+      return res.json({
+        success: true,
+        data: { job },
+      });
+    } catch (error) {
+      console.error("[platform] admin update job error:", error);
+      return sendError(res, 500, "Failed to update job.");
+    }
+  });
+
+  router.delete("/admin/jobs/:jobId", requireAuth, requireAdmin, async (req, res) => {
+    try {
+      const jobId = parsePositiveInt(req.params.jobId);
+      if (!jobId) {
+        return sendError(res, 400, "Invalid jobId.");
+      }
+      const deleted = await store.adminDeleteJob(jobId);
+      if (!deleted) {
+        return sendError(res, 404, "Job not found.");
+      }
+      return res.json({ success: true });
+    } catch (error) {
+      console.error("[platform] admin delete job error:", error);
+      return sendError(res, 500, "Failed to delete job.");
+    }
+  });
+
   router.get("/admin/summary", requireAuth, requireAdmin, async (req, res) => {
     try {
       const users = await store.listUsers();
       const jobs = await store.listAllJobs(1000);
-      const projects = await Promise.all(
-        users.map((user) => store.listProjectsForUser(user.id))
-      );
-      const projectCount = projects.reduce((acc, list) => acc + list.length, 0);
+      const projects = await store.listAllProjects();
       return res.json({
         success: true,
         data: {
           users: users.length,
           admins: users.filter((u) => u.role === "admin").length,
-          projects: projectCount,
+          projects: projects.length,
           jobs: jobs.length,
         },
       });

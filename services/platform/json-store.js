@@ -23,6 +23,18 @@ function sanitizeUser(user) {
   };
 }
 
+function sanitizeProject(project, username = "") {
+  return {
+    id: project.id,
+    name: project.name,
+    description: project.description,
+    ownerUserId: project.ownerUserId,
+    ownerUsername: username || "",
+    createdAt: project.createdAt,
+    updatedAt: project.updatedAt,
+  };
+}
+
 export class JsonStore {
   constructor(filePath) {
     this.type = "json";
@@ -102,11 +114,82 @@ export class JsonStore {
     return sanitizeUser(user);
   }
 
+  async updateUser({ userId, username, passwordHash, role }) {
+    await this.ensureSchema();
+    const user = this.data.users.find((item) => item.id === userId);
+    if (!user) {
+      return null;
+    }
+    if (typeof username === "string" && username.trim()) {
+      const normalized = username.trim().toLowerCase();
+      const duplicated = this.data.users.find(
+        (item) => item.username === normalized && item.id !== userId
+      );
+      if (duplicated) {
+        const error = new Error("Username already exists.");
+        error.code = "DUPLICATE_USERNAME";
+        throw error;
+      }
+      user.username = normalized;
+    }
+    if (typeof passwordHash === "string" && passwordHash.trim()) {
+      user.passwordHash = passwordHash;
+    }
+    if (typeof role === "string" && role.trim()) {
+      user.role = role.trim();
+    }
+    await this.flush();
+    return sanitizeUser(user);
+  }
+
+  async deleteUser(userId) {
+    await this.ensureSchema();
+    const target = this.data.users.find((item) => item.id === userId);
+    if (!target) {
+      return false;
+    }
+    this.data.users = this.data.users.filter((item) => item.id !== userId);
+    const projectIds = new Set(
+      this.data.projects
+        .filter((project) => project.ownerUserId === userId)
+        .map((project) => project.id)
+    );
+    this.data.projects = this.data.projects.filter(
+      (project) => project.ownerUserId !== userId
+    );
+    this.data.jobs = this.data.jobs.filter(
+      (job) => job.userId !== userId && !projectIds.has(job.projectId)
+    );
+    await this.flush();
+    return true;
+  }
+
   async listProjectsForUser(userId) {
     await this.ensureSchema();
     return this.data.projects
       .filter((item) => item.ownerUserId === userId)
       .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  }
+
+  async listAllProjects() {
+    await this.ensureSchema();
+    const userMap = new Map(this.data.users.map((u) => [u.id, u.username]));
+    return this.data.projects
+      .slice()
+      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+      .map((project) =>
+        sanitizeProject(project, userMap.get(project.ownerUserId) || "")
+      );
+  }
+
+  async getProjectById(projectId) {
+    await this.ensureSchema();
+    const project = this.data.projects.find((item) => item.id === projectId);
+    if (!project) {
+      return null;
+    }
+    const owner = this.data.users.find((u) => u.id === project.ownerUserId);
+    return sanitizeProject(project, owner?.username || "");
   }
 
   async createProject({ name, description = "", ownerUserId }) {
@@ -144,12 +227,45 @@ export class JsonStore {
     return project;
   }
 
+  async adminUpdateProject({ projectId, name, description, ownerUserId }) {
+    await this.ensureSchema();
+    const project = this.data.projects.find((item) => item.id === projectId);
+    if (!project) {
+      return null;
+    }
+    if (typeof name === "string" && name.trim()) {
+      project.name = name.trim();
+    }
+    if (typeof description === "string") {
+      project.description = description.trim();
+    }
+    if (Number.isFinite(ownerUserId)) {
+      project.ownerUserId = ownerUserId;
+    }
+    project.updatedAt = new Date().toISOString();
+    await this.flush();
+    const owner = this.data.users.find((u) => u.id === project.ownerUserId);
+    return sanitizeProject(project, owner?.username || "");
+  }
+
   async deleteProject({ projectId, ownerUserId }) {
     await this.ensureSchema();
     const before = this.data.projects.length;
     this.data.projects = this.data.projects.filter(
       (item) => !(item.id === projectId && item.ownerUserId === ownerUserId)
     );
+    this.data.jobs = this.data.jobs.filter((item) => item.projectId !== projectId);
+    const changed = this.data.projects.length !== before;
+    if (changed) {
+      await this.flush();
+    }
+    return changed;
+  }
+
+  async adminDeleteProject(projectId) {
+    await this.ensureSchema();
+    const before = this.data.projects.length;
+    this.data.projects = this.data.projects.filter((item) => item.id !== projectId);
     this.data.jobs = this.data.jobs.filter((item) => item.projectId !== projectId);
     const changed = this.data.projects.length !== before;
     if (changed) {
@@ -175,6 +291,40 @@ export class JsonStore {
       .slice()
       .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
       .slice(0, limit);
+  }
+
+  async adminUpdateJob({ jobId, status, message, outputPath, type }) {
+    await this.ensureSchema();
+    const job = this.data.jobs.find((item) => item.id === jobId);
+    if (!job) {
+      return null;
+    }
+    if (typeof status === "string" && status.trim()) {
+      job.status = status.trim();
+    }
+    if (typeof message === "string") {
+      job.message = message;
+    }
+    if (typeof outputPath === "string") {
+      job.outputPath = outputPath;
+    }
+    if (typeof type === "string" && type.trim()) {
+      job.type = type.trim();
+    }
+    job.updatedAt = new Date().toISOString();
+    await this.flush();
+    return job;
+  }
+
+  async adminDeleteJob(jobId) {
+    await this.ensureSchema();
+    const before = this.data.jobs.length;
+    this.data.jobs = this.data.jobs.filter((item) => item.id !== jobId);
+    const changed = this.data.jobs.length !== before;
+    if (changed) {
+      await this.flush();
+    }
+    return changed;
   }
 
   async createJob({ projectId, userId, type, payload }) {

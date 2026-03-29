@@ -132,6 +132,46 @@ export class PgStore {
     return sanitizeUser(result.rows[0]);
   }
 
+  async updateUser({ userId, username, passwordHash, role }) {
+    const params = [userId];
+    const setClauses = [];
+    if (typeof username === "string" && username.trim()) {
+      params.push(username.trim().toLowerCase());
+      setClauses.push(`username = $${params.length}`);
+    }
+    if (typeof passwordHash === "string" && passwordHash.trim()) {
+      params.push(passwordHash);
+      setClauses.push(`password_hash = $${params.length}`);
+    }
+    if (typeof role === "string" && role.trim()) {
+      params.push(role.trim());
+      setClauses.push(`role = $${params.length}`);
+    }
+    if (setClauses.length === 0) {
+      const current = await this.getUserById(userId);
+      return current;
+    }
+    const result = await this.pool.query(
+      `UPDATE users
+       SET ${setClauses.join(", ")}
+       WHERE id = $1
+       RETURNING id, username, role, created_at;`,
+      params
+    );
+    if (result.rowCount === 0) {
+      return null;
+    }
+    return sanitizeUser(result.rows[0]);
+  }
+
+  async deleteUser(userId) {
+    const result = await this.pool.query(
+      `DELETE FROM users WHERE id = $1;`,
+      [userId]
+    );
+    return result.rowCount > 0;
+  }
+
   async listProjectsForUser(userId) {
     const result = await this.pool.query(
       `SELECT id, name, description, owner_user_id, created_at, updated_at
@@ -148,6 +188,48 @@ export class PgStore {
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     }));
+  }
+
+  async listAllProjects() {
+    const result = await this.pool.query(
+      `SELECT p.id, p.name, p.description, p.owner_user_id, p.created_at, p.updated_at, u.username AS owner_username
+       FROM projects p
+       JOIN users u ON u.id = p.owner_user_id
+       ORDER BY p.updated_at DESC;`
+    );
+    return result.rows.map((row) => ({
+      id: row.id,
+      name: row.name,
+      description: row.description,
+      ownerUserId: Number(row.owner_user_id),
+      ownerUsername: row.owner_username,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    }));
+  }
+
+  async getProjectById(projectId) {
+    const result = await this.pool.query(
+      `SELECT p.id, p.name, p.description, p.owner_user_id, p.created_at, p.updated_at, u.username AS owner_username
+       FROM projects p
+       JOIN users u ON u.id = p.owner_user_id
+       WHERE p.id = $1
+       LIMIT 1;`,
+      [projectId]
+    );
+    if (result.rowCount === 0) {
+      return null;
+    }
+    const row = result.rows[0];
+    return {
+      id: row.id,
+      name: row.name,
+      description: row.description,
+      ownerUserId: Number(row.owner_user_id),
+      ownerUsername: row.owner_username,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    };
   }
 
   async createProject({ name, description = "", ownerUserId }) {
@@ -194,11 +276,58 @@ export class PgStore {
     };
   }
 
+  async adminUpdateProject({ projectId, name, description, ownerUserId }) {
+    const params = [projectId];
+    const setClauses = ["updated_at = NOW()"];
+    if (typeof name === "string" && name.trim()) {
+      params.push(name.trim());
+      setClauses.push(`name = $${params.length}`);
+    }
+    if (typeof description === "string") {
+      params.push(description.trim());
+      setClauses.push(`description = $${params.length}`);
+    }
+    if (Number.isFinite(ownerUserId)) {
+      params.push(ownerUserId);
+      setClauses.push(`owner_user_id = $${params.length}`);
+    }
+    const result = await this.pool.query(
+      `UPDATE projects
+       SET ${setClauses.join(", ")}
+       WHERE id = $1
+       RETURNING id, name, description, owner_user_id, created_at, updated_at;`,
+      params
+    );
+    if (result.rowCount === 0) {
+      return null;
+    }
+    const project = result.rows[0];
+    const owner = await this.getUserById(Number(project.owner_user_id));
+    return {
+      id: project.id,
+      name: project.name,
+      description: project.description,
+      ownerUserId: Number(project.owner_user_id),
+      ownerUsername: owner?.username || "",
+      createdAt: project.created_at,
+      updatedAt: project.updated_at,
+    };
+  }
+
   async deleteProject({ projectId, ownerUserId }) {
     const result = await this.pool.query(
       `DELETE FROM projects
        WHERE id = $1 AND owner_user_id = $2;`,
       [projectId, ownerUserId]
+    );
+    return result.rowCount > 0;
+  }
+
+  async adminDeleteProject(projectId) {
+    const result = await this.pool.query(
+      `DELETE FROM projects
+       WHERE id = $1;`,
+      [projectId]
     );
     return result.rowCount > 0;
   }
@@ -246,6 +375,58 @@ export class PgStore {
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     }));
+  }
+
+  async adminUpdateJob({ jobId, status, message, outputPath, type }) {
+    const params = [jobId];
+    const setClauses = ["updated_at = NOW()"];
+    if (typeof status === "string" && status.trim()) {
+      params.push(status.trim());
+      setClauses.push(`status = $${params.length}`);
+    }
+    if (typeof message === "string") {
+      params.push(message);
+      setClauses.push(`message = $${params.length}`);
+    }
+    if (typeof outputPath === "string") {
+      params.push(outputPath);
+      setClauses.push(`output_path = $${params.length}`);
+    }
+    if (typeof type === "string" && type.trim()) {
+      params.push(type.trim());
+      setClauses.push(`type = $${params.length}`);
+    }
+    const result = await this.pool.query(
+      `UPDATE jobs
+       SET ${setClauses.join(", ")}
+       WHERE id = $1
+       RETURNING id, project_id, user_id, type, status, payload, message, output_path, created_at, updated_at;`,
+      params
+    );
+    if (result.rowCount === 0) {
+      return null;
+    }
+    const row = result.rows[0];
+    return {
+      id: Number(row.id),
+      projectId: row.project_id,
+      userId: Number(row.user_id),
+      type: row.type,
+      status: row.status,
+      payload: row.payload,
+      message: row.message,
+      outputPath: row.output_path,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    };
+  }
+
+  async adminDeleteJob(jobId) {
+    const result = await this.pool.query(
+      `DELETE FROM jobs WHERE id = $1;`,
+      [jobId]
+    );
+    return result.rowCount > 0;
   }
 
   async createJob({ projectId, userId, type, payload }) {
