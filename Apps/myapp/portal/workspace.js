@@ -16,15 +16,90 @@ const jobList = document.getElementById("jobList");
 
 const openAnnotationBtn = document.getElementById("openAnnotationBtn");
 const openCaptureBtn = document.getElementById("openCaptureBtn");
+const openAnalysisBtn = document.getElementById("openAnalysisBtn");
+const openAdminBtn = document.getElementById("openAdminBtn");
 const workspaceStatus = document.getElementById("workspaceStatus");
-const annotationFrame = document.getElementById("annotationFrame");
-const captureFrame = document.getElementById("captureFrame");
+
+const frames = {
+  annotation: document.getElementById("annotationFrame"),
+  capture: document.getElementById("captureFrame"),
+  analysis: document.getElementById("analysisFrame"),
+  admin: document.getElementById("adminFrame"),
+};
+
+const moduleButtons = {
+  annotation: openAnnotationBtn,
+  capture: openCaptureBtn,
+  analysis: openAnalysisBtn,
+  admin: openAdminBtn,
+};
+
+const moduleLabels = {
+  annotation: "窗口标注",
+  capture: "批量拍照",
+  analysis: "语义分割",
+  admin: "管理后台",
+};
 
 let currentUser = null;
 let projects = [];
 let selectedProjectId = "";
 let currentModule = "annotation";
-let captureLoaded = false;
+
+const loadedModules = new Set(["annotation"]);
+
+function ensureModuleLoaded(moduleName) {
+  const frame = frames[moduleName];
+  if (!frame || loadedModules.has(moduleName)) {
+    return;
+  }
+  const src = frame.dataset.src;
+  if (src) {
+    frame.src = src;
+    loadedModules.add(moduleName);
+  }
+}
+
+function setActiveModuleButton(moduleName) {
+  for (const [name, btn] of Object.entries(moduleButtons)) {
+    if (!btn || btn.style.display === "none") {
+      continue;
+    }
+    if (name === moduleName) {
+      btn.classList.remove("secondary");
+    } else {
+      btn.classList.add("secondary");
+    }
+  }
+}
+
+function setToolModule(moduleName) {
+  if (moduleName === "admin" && currentUser?.role !== "admin") {
+    setStatusLine(workspaceStatus, "当前用户无管理后台权限。", "error");
+    return;
+  }
+
+  if (!frames[moduleName]) {
+    return;
+  }
+
+  ensureModuleLoaded(moduleName);
+  currentModule = moduleName;
+
+  for (const [name, frame] of Object.entries(frames)) {
+    if (!frame) {
+      continue;
+    }
+    if (name === moduleName) {
+      frame.classList.add("active");
+    } else {
+      frame.classList.remove("active");
+    }
+  }
+
+  setActiveModuleButton(moduleName);
+  setStatusLine(workspaceStatus, `当前模块: ${moduleLabels[moduleName]}`);
+}
 
 function selectProject(projectId) {
   selectedProjectId = projectId;
@@ -39,6 +114,7 @@ function renderProjects() {
     projectList.innerHTML = `<div class="item">暂无项目，请先创建。</div>`;
     return;
   }
+
   projectList.innerHTML = projects
     .map((project) => {
       const activeClass = project.id === selectedProjectId ? " active" : "";
@@ -67,15 +143,18 @@ async function loadJobs() {
   if (!jobList) {
     return;
   }
+
   const query = selectedProjectId
     ? `?projectId=${encodeURIComponent(selectedProjectId)}`
     : "";
   const data = await api(`/api/platform/jobs${query}`);
   const jobs = data.jobs || [];
+
   if (!jobs.length) {
     jobList.innerHTML = `<div class="item">暂无任务记录。</div>`;
     return;
   }
+
   jobList.innerHTML = jobs
     .map((job) => {
       const payloadText = job.payload ? JSON.stringify(job.payload) : "{}";
@@ -88,47 +167,15 @@ async function loadJobs() {
     .join("");
 }
 
-function ensureCaptureFrameLoaded() {
-  if (captureLoaded || !captureFrame) {
-    return;
-  }
-  const src = captureFrame.dataset.src;
-  if (src) {
-    captureFrame.src = src;
-    captureLoaded = true;
-  }
-}
-
-function setToolModule(moduleName) {
-  currentModule = moduleName;
-  if (!annotationFrame || !captureFrame) {
-    return;
-  }
-
-  if (moduleName === "capture") {
-    ensureCaptureFrameLoaded();
-    annotationFrame.classList.remove("active");
-    captureFrame.classList.add("active");
-    openAnnotationBtn.classList.remove("secondary");
-    openCaptureBtn.classList.remove("secondary");
-    openAnnotationBtn.classList.add("secondary");
-    setStatusLine(workspaceStatus, "当前模块: 批量拍照");
-    return;
-  }
-
-  annotationFrame.classList.add("active");
-  captureFrame.classList.remove("active");
-  openCaptureBtn.classList.add("secondary");
-  openAnnotationBtn.classList.remove("secondary");
-  setStatusLine(workspaceStatus, "当前模块: 窗口标注");
-}
-
 async function bootstrap() {
   try {
     const me = await api("/api/platform/auth/me");
     currentUser = me.user;
     if (userInfo) {
       userInfo.textContent = `当前用户: ${currentUser.username} (${currentUser.role})`;
+    }
+    if (openAdminBtn) {
+      openAdminBtn.style.display = currentUser.role === "admin" ? "inline-block" : "none";
     }
   } catch {
     window.location.href = "/portal";
@@ -137,17 +184,10 @@ async function bootstrap() {
 
   setToolModule("annotation");
 
-  loadProjects().catch((error) => {
-    setStatusLine(projectStatus, error.message, "error");
-  });
-  loadJobs().catch((error) => {
-    setStatusLine(jobStatus, error.message, "error");
-  });
+  loadProjects().catch((error) => setStatusLine(projectStatus, error.message, "error"));
+  loadJobs().catch((error) => setStatusLine(jobStatus, error.message, "error"));
 
-  // Warm up capture module after the workspace is interactive.
-  window.setTimeout(() => {
-    ensureCaptureFrameLoaded();
-  }, 2500);
+  window.setTimeout(() => ensureModuleLoaded("capture"), 2000);
 }
 
 createProjectBtn?.addEventListener("click", async () => {
@@ -183,15 +223,11 @@ projectList?.addEventListener("click", (event) => {
     return;
   }
   selectProject(item.dataset.projectId);
-  loadJobs().catch((error) => {
-    setStatusLine(jobStatus, error.message, "error");
-  });
+  loadJobs().catch((error) => setStatusLine(jobStatus, error.message, "error"));
 });
 
 refreshJobsBtn?.addEventListener("click", () => {
-  loadJobs().catch((error) => {
-    setStatusLine(jobStatus, error.message, "error");
-  });
+  loadJobs().catch((error) => setStatusLine(jobStatus, error.message, "error"));
 });
 
 createJobBtn?.addEventListener("click", async () => {
@@ -223,6 +259,8 @@ createJobBtn?.addEventListener("click", async () => {
 
 openAnnotationBtn?.addEventListener("click", () => setToolModule("annotation"));
 openCaptureBtn?.addEventListener("click", () => setToolModule("capture"));
+openAnalysisBtn?.addEventListener("click", () => setToolModule("analysis"));
+openAdminBtn?.addEventListener("click", () => setToolModule("admin"));
 
 logoutBtn?.addEventListener("click", async () => {
   try {

@@ -47,6 +47,8 @@
         <strong>工作台</strong>
         <button class="btn" id="openAnnotationBtn">窗口标注</button>
         <button class="btn secondary" id="openCaptureBtn">批量拍照</button>
+        <button class="btn secondary" id="openAnalysisBtn">语义分割</button>
+        <button class="btn secondary" id="openAdminBtn" style="display:none;">管理后台</button>
         <span class="status-line" id="workspaceStatus"></span>
       </div>
 
@@ -54,13 +56,27 @@
         <iframe
           id="annotationFrame"
           class="tool-frame active"
-          src="/Apps/myapp/GE_WongChukHung_annotation/GE3d_WongChuHung_annotation.html"
+          src="/annotation?embed=1"
           loading="eager"
         ></iframe>
         <iframe
           id="captureFrame"
           class="tool-frame"
-          data-src="/Apps/myapp/ViewGenerationImage/GE3d.html"
+          data-src="/capture?embed=1"
+          src="about:blank"
+          loading="lazy"
+        ></iframe>
+        <iframe
+          id="analysisFrame"
+          class="tool-frame"
+          data-src="/analysis?embed=1"
+          src="about:blank"
+          loading="lazy"
+        ></iframe>
+        <iframe
+          id="adminFrame"
+          class="tool-frame"
+          data-src="/admin?embed=1"
           src="about:blank"
           loading="lazy"
         ></iframe>
@@ -68,6 +84,6 @@
     </section>
   </main>
 
-  <script type="module" src="/Apps/myapp/portal/workspace.js?v=20260329p2"></script>
+  <script type="module" src="/Apps/myapp/portal/workspace.js?v=20260329p2fix1"></script>
 </body>
 </html>
