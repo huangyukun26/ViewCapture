@@ -255,6 +255,7 @@ async function generateDevelopmentBuild(buildTools) {
   app.get("/annotation", sendAppFile(path.join("Apps", "myapp", "portal", "annotation.html")));
   app.get("/capture", sendAppFile(path.join("Apps", "myapp", "portal", "capture.html")));
   app.get("/analysis", sendAppFile(path.join("Apps", "myapp", "portal", "analysis.html")));
+  app.get("/analysis/examples", sendAppFile(path.join("Apps", "myapp", "portal", "analysis_examples.html")));
   app.get("/admin", sendAppFile(path.join("Apps", "myapp", "portal", "admin.html")));
   app.get("/legacy-home", function (req, res) {
     res.redirect(302, "/Apps/myapp/index.html");

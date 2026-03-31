@@ -48,6 +48,7 @@ Default URL: `http://localhost:8080`
 - `/annotation`: annotation module shell
 - `/capture`: capture module shell
 - `/analysis`: semantic analysis module shell
+- `/analysis/examples`: semantic analysis instruction + downloadable example files
 - `/admin`: admin dashboard shell
 - `/healthz`: service health
 - `/api/platform/health`: platform backend health
@@ -96,9 +97,26 @@ AI backend proxy (requires login):
 
 GPU service handoff:
 
-- You can keep current CPU backend first.
+- Legacy AI backend can run in CPU mode first (default in `deploy/docker/docker-compose.full.yml`).
 - When GPU server is ready, admin can update AI URL in `/admin` page without redeploy.
 - Runtime config persists at `data/platform/runtime-config.json`.
+
+CPU self-check (Conda):
+
+```powershell
+$env:CUDA_VISIBLE_DEVICES='-1'
+conda run -n windpred python `
+  windowview_tool_USTGZ_0327/windowview_tool_USTGZ/backend_v2/backend_v2/volume/window_view_service/deeplabv3/pytorch-deeplab-xception-master/predict_window_view_analysis_v1.py `
+  --device cpu --gpu_id -1 `
+  --input windowview_tool_USTGZ_0327/windowview_tool_USTGZ/test_images `
+  --save_pred_results_to windowview_tool_USTGZ_0327/windowview_tool_USTGZ/backend_v2/backend_v2/volume/window_view_service/deeplabv3/pytorch-deeplab-xception-master/imageset/segmented_images_cpu_test `
+  --ckpt windowview_tool_USTGZ_0327/windowview_tool_USTGZ/backend_v2/backend_v2/volume/window_view_service/deeplabv3/trained_checkpoints/cim_wv2060/deepresnet_16/checkpoint_300.pth.tar
+```
+
+Weights note:
+
+- Running from legacy image tar (`windowviewservice_v4.tar`): weights are built in.
+- Running from source/conda: keep local `.pth/.pth.tar` checkpoint files.
 
 Storage backend selection:
 
@@ -119,6 +137,7 @@ Important:
 
 - CSV workflow is browser-local now. Users should load CSV files/folders from web file picker.
 - Workspace no longer depends on server-side `Apps/myapp/input` listing.
+- Legacy semantic-segmentation sample files are bundled under `Apps/myapp/portal/examples/semantic-analysis/`.
 
 ## 4. Docker Full Stack (Cloud)
 

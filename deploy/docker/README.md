@@ -44,6 +44,21 @@ Then start legacy profile:
 docker compose -f deploy/docker/docker-compose.full.yml --profile legacy up -d
 ```
 
+By default this repo now starts legacy AI in **CPU mode** (`WVI_FORCE_CPU=1`).
+If you want GPU later:
+
+```bash
+WVI_FORCE_CPU=0 CUDA_VISIBLE_DEVICES=0 NVIDIA_VISIBLE_DEVICES=all \
+docker compose -f deploy/docker/docker-compose.full.yml --profile legacy up -d
+```
+
+Notes about model weights:
+
+- If you use `windowviewservice_v4.tar`, weights are already inside the image.
+- If you run from source volume (`/model`) instead, keep the checkpoint files under:
+  - `deeplabv3/trained_checkpoints/...`
+  - `deeplabv3/pytorch-deeplab-xception-master/models/*.pth`
+
 Legacy exposed ports:
 
 - display: `8081`

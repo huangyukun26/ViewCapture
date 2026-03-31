@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Semantic Analysis Examples</title>
+  <link rel="stylesheet" href="/Apps/myapp/portal/styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <div class="cvl-brand">
+        <span class="cvl-dot"></span>
+        <span>Semantic Analysis Examples</span>
+      </div>
+      <div class="cvl-subtitle">Use this page as onboarding instructions for the legacy semantic-segmentation workflow.</div>
+    </div>
+    <div class="actions">
+      <a class="btn secondary" href="/analysis">Back to Analysis</a>
+      <a class="btn secondary" href="/workspace">Back to Workspace</a>
+    </div>
+  </header>
+
+  <main class="cvl-shell">
+    <section class="cvl-card" style="padding:16px;">
+      <h3 style="margin:0 0 10px;">Quick Instruction</h3>
+      <ol style="margin:0; padding-left:18px;">
+        <li>Open <code>/analysis</code> and login.</li>
+        <li>In <strong>Image Upload</strong>, select one or more PNG/JPG files.</li>
+        <li>In <strong>CSV Upload</strong>, select one CSV file or an entire folder.</li>
+        <li>Wait for queue status to become <code>completed</code>.</li>
+        <li>Use <strong>Query Result</strong> to inspect metrics and export JSON.</li>
+      </ol>
+      <p style="margin:10px 0 0; color:#586f86;">
+        Note: current cloud setup can run in CPU mode. It is slower than GPU but fully functional.
+      </p>
+    </section>
+
+    <section class="cvl-card" style="padding:16px; margin-top:14px;">
+      <h3 style="margin:0 0 10px;">Example Files</h3>
+      <div class="job-list">
+        <div class="item">
+          <strong>CSV sample</strong>
+          <div style="margin-top:6px;">
+            <a href="/Apps/myapp/portal/examples/semantic-analysis/test.csv" download>Download test.csv</a>
+          </div>
+        </div>
+        <div class="item">
+          <strong>Image samples (from legacy semantic tool)</strong>
+          <div style="margin-top:6px;">
+            <a href="/Apps/myapp/portal/examples/semantic-analysis/374_81_TZMNIHIXHM_1_8_46_B_Bed_1_114.149413_22.28164_259.1541_32.108544.png" download>Sample image 1</a>
+          </div>
+          <div>
+            <a href="/Apps/myapp/portal/examples/semantic-analysis/60_33_SKPPWPPEPS_1_212_20_A_Living_114.143098_22.280486_249.4279_359.356373.png" download>Sample image 2</a>
+          </div>
+          <div>
+            <a href="/Apps/myapp/portal/examples/semantic-analysis/81_66_TZDSIHSXDT_1_7_10_E_Bath_1_114.14166_22.282128_141.6973_175.665572.png" download>Sample image 3</a>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+</body>
+</html>
+

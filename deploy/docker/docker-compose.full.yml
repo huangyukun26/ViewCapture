@@ -90,6 +90,9 @@ services:
     environment:
       REDIS_HOST: legacy-redis
       POSTGRES_HOST: legacy-postgres
+      WVI_FORCE_CPU: "${WVI_FORCE_CPU:-1}"
+      CUDA_VISIBLE_DEVICES: "${CUDA_VISIBLE_DEVICES:--1}"
+      NVIDIA_VISIBLE_DEVICES: "${NVIDIA_VISIBLE_DEVICES:-none}"
     depends_on:
       - legacy-redis
       - legacy-postgres
