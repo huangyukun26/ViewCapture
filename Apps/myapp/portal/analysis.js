@@ -220,27 +220,93 @@ async function fetchAiAnalysis(aiJobId) {
   return body;
 }
 
-async function fetchAiImage(aiJobId) {
-  const candidates = [
-    `/api/platform/ai/images/segmented/${encodeURIComponent(aiJobId)}`,
-    `/api/platform/ai/images/original/${encodeURIComponent(aiJobId)}`,
-  ];
+function uniqNonEmpty(values) {
+  return Array.from(
+    new Set(
+      values
+        .map((value) => String(value || "").trim())
+        .filter((value) => Boolean(value))
+    )
+  );
+}
 
-  let lastStatus = 0;
-  for (const url of candidates) {
-    const response = await fetch(url, {
-      method: "GET",
-      credentials: "include",
-    });
-    if (!response.ok) {
-      lastStatus = response.status;
-      continue;
+function stripImageExt(name) {
+  return String(name || "").replace(/\.(png|jpg|jpeg|gif|bmp|webp)$/i, "");
+}
+
+async function fetchImageObjectUrl(endpoint) {
+  const response = await fetch(endpoint, {
+    method: "GET",
+    credentials: "include",
+  });
+  if (!response.ok) {
+    const error = new Error(`HTTP ${response.status}`);
+    error.status = response.status;
+    throw error;
+  }
+  const blob = await response.blob();
+  return URL.createObjectURL(blob);
+}
+
+async function fetchAiImages(aiJobId, analysisPayload) {
+  const analysisRoot = analysisPayload?.data || analysisPayload || {};
+  const analysisName = analysisRoot.name || analysisRoot.fileName || "";
+
+  const idCandidates = uniqNonEmpty([
+    aiJobId,
+    analysisName,
+    stripImageExt(analysisName),
+  ]);
+
+  const images = [];
+  let lastError = null;
+
+  for (const id of idCandidates) {
+    if (!images.find((item) => item.type === "original")) {
+      try {
+        const originalUrl = await fetchImageObjectUrl(
+          `/api/platform/ai/images/original/${encodeURIComponent(id)}`
+        );
+        images.push({ type: "original", label: "Original Image", url: originalUrl });
+      } catch (error) {
+        lastError = error;
+      }
     }
-    const blob = await response.blob();
-    return URL.createObjectURL(blob);
+
+    if (!images.find((item) => item.type === "segmented")) {
+      try {
+        const segmentedUrl = await fetchImageObjectUrl(
+          `/api/platform/ai/images/segmented/${encodeURIComponent(id)}`
+        );
+        images.push({ type: "segmented", label: "Segmented Image", url: segmentedUrl });
+      } catch (error) {
+        lastError = error;
+      }
+    }
+
+    if (
+      images.find((item) => item.type === "original") &&
+      images.find((item) => item.type === "segmented")
+    ) {
+      break;
+    }
   }
 
-  throw new Error(`Get image failed: HTTP ${lastStatus || 404}`);
+  if (!images.length) {
+    const status = lastError?.status || 404;
+    throw new Error(`Get image failed: HTTP ${status}`);
+  }
+
+  const ordered = [];
+  const original = images.find((item) => item.type === "original");
+  const segmented = images.find((item) => item.type === "segmented");
+  if (original) {
+    ordered.push(original);
+  }
+  if (segmented) {
+    ordered.push(segmented);
+  }
+  return ordered;
 }
 
 async function ensureLoginAndDefaults() {
@@ -565,11 +631,8 @@ async function queryAnalysisResult() {
   }
 
   try {
-    const imageUrl = await fetchAiImage(aiJobId);
-    resultPayload.images.push({
-      label: "Result Image",
-      url: imageUrl,
-    });
+    const imageItems = await fetchAiImages(aiJobId, resultPayload.analysis);
+    resultPayload.images.push(...imageItems);
   } catch (error) {
     resultPayload.imageError = error.message;
   }
