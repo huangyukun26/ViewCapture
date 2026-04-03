@@ -713,7 +713,23 @@ var handler = new Cesium.ScreenSpaceEventHandler(viewer.canvas);
     });
 
 
-    // 22.280048773761184, 114.17544987949462
+    const HONG_KONG_START = {
+      lon: 114.17544987949462,
+      lat: 22.280048773761184,
+      height: 1600.0,
+      headingDeg: 15.0,
+      pitchDeg: -35.0,
+      rollDeg: 0.0,
+    };
+
+    const lonInput = document.getElementById('lon');
+    const latInput = document.getElementById('lat');
+    if (lonInput && !lonInput.value) {
+      lonInput.value = HONG_KONG_START.lon.toFixed(6);
+    }
+    if (latInput && !latInput.value) {
+      latInput.value = HONG_KONG_START.lat.toFixed(6);
+    }
     
     const btn_flyto = document.getElementById('flyto');
 
@@ -742,18 +758,18 @@ var handler = new Cesium.ScreenSpaceEventHandler(viewer.canvas);
     if (myCesiumTileset_1.readyPromise) {
       await myCesiumTileset_1.readyPromise;
     }
-    // Match Sandcastle initial camera for Google Photorealistic 3D Tiles.
+    // Start in Hong Kong rather than Sandcastle's default Mountain View location.
     viewer.scene.camera.setView({
-      destination: new Cesium.Cartesian3(
-        -2693797.551060477,
-        -4297135.517094725,
-        3854700.7470414364
+      destination: Cesium.Cartesian3.fromDegrees(
+        HONG_KONG_START.lon,
+        HONG_KONG_START.lat,
+        HONG_KONG_START.height
       ),
-      orientation: new Cesium.HeadingPitchRoll(
-        4.6550106925119925,
-        -0.2863894863138836,
-        1.3561760425773173e-7
-      )
+      orientation: {
+        heading: Cesium.Math.toRadians(HONG_KONG_START.headingDeg),
+        pitch: Cesium.Math.toRadians(HONG_KONG_START.pitchDeg),
+        roll: Cesium.Math.toRadians(HONG_KONG_START.rollDeg),
+      },
     });
 
     myCesiumTileset_1.tileLoad.addEventListener(() => {
