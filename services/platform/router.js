@@ -160,49 +160,11 @@ export function createPlatformRouter({ store, sessions, inputDir, runtimeConfig 
   router.use(express.json({ limit: "2mb" }));
 
   router.post("/auth/register", async (req, res) => {
-    try {
-      const username = normalizeUsername(req.body?.username);
-      const password = req.body?.password || "";
-
-      if (!isValidUsername(username)) {
-        return sendError(
-          res,
-          400,
-          "Invalid username. Use 3-32 chars: a-z, 0-9, _, -, ."
-        );
-      }
-      if (!isValidPassword(password)) {
-        return sendError(res, 400, "Password must be at least 8 characters.");
-      }
-
-      const existing = await store.getUserByUsername(username);
-      if (existing) {
-        return sendError(res, 409, "Username already exists.");
-      }
-
-      const passwordHash = hashPassword(password);
-      const user = await store.createUser({
-        username,
-        passwordHash,
-        role: "user",
-      });
-
-      const token = generateSessionToken();
-      await sessions.set(
-        token,
-        { userId: user.id, username: user.username, role: user.role },
-        SESSION_TTL_SECONDS
-      );
-      res.cookie(SESSION_COOKIE_NAME, token, getCookieOptions());
-
-      return res.json({
-        success: true,
-        data: { user },
-      });
-    } catch (error) {
-      console.error("[platform] register error:", error);
-      return sendError(res, 500, "Failed to register.");
-    }
+    return sendError(
+      res,
+      403,
+      "Self-registration is disabled. Ask admin to create account in Admin Console."
+    );
   });
 
   router.post("/auth/login", async (req, res) => {

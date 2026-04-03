@@ -59,7 +59,7 @@ Internal legacy pages are still present, but you should use the clean routes abo
 
 Mounted at `/api/platform`:
 
-- `POST /auth/register`
+- `POST /auth/register` (disabled; account creation is admin-only via `/admin/users`)
 - `POST /auth/login`
 - `POST /auth/logout`
 - `GET /auth/me`

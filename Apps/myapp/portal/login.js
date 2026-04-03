@@ -2,12 +2,8 @@ import { api, setStatusLine } from "/Apps/myapp/portal/common.js";
 
 const loginUsername = document.getElementById("loginUsername");
 const loginPassword = document.getElementById("loginPassword");
-const registerUsername = document.getElementById("registerUsername");
-const registerPassword = document.getElementById("registerPassword");
 const loginStatus = document.getElementById("loginStatus");
-const registerStatus = document.getElementById("registerStatus");
 const loginBtn = document.getElementById("loginBtn");
-const registerBtn = document.getElementById("registerBtn");
 
 async function tryAutoLogin() {
   try {
@@ -43,41 +39,10 @@ async function handleLogin() {
   }
 }
 
-async function handleRegister() {
-  const username = registerUsername.value.trim();
-  const password = registerPassword.value;
-  setStatusLine(registerStatus, "");
-  if (!username || !password) {
-    setStatusLine(registerStatus, "请输入用户名和密码。", "error");
-    return;
-  }
-  registerBtn.disabled = true;
-  try {
-    await api("/api/platform/auth/register", {
-      method: "POST",
-      body: JSON.stringify({ username, password }),
-    });
-    setStatusLine(registerStatus, "注册成功，已自动登录。", "success");
-    window.setTimeout(() => {
-      window.location.href = "/workspace";
-    }, 400);
-  } catch (error) {
-    setStatusLine(registerStatus, error.message, "error");
-  } finally {
-    registerBtn.disabled = false;
-  }
-}
-
 loginBtn.addEventListener("click", handleLogin);
-registerBtn.addEventListener("click", handleRegister);
 loginPassword.addEventListener("keydown", (event) => {
   if (event.key === "Enter") {
     handleLogin();
-  }
-});
-registerPassword.addEventListener("keydown", (event) => {
-  if (event.key === "Enter") {
-    handleRegister();
   }
 });
 

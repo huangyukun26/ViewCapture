@@ -192,8 +192,18 @@ async function aiFetch(path, options = {}) {
 }
 
 async function fetchAiHealth() {
-  const { body } = await aiFetch("/health", { method: "GET" });
-  return body;
+  try {
+    const { body } = await aiFetch("/health", { method: "GET" });
+    return body;
+  } catch (error) {
+    if (error?.status === 404) {
+      return {
+        ok: true,
+        message: "AI backend reachable (no /health endpoint, fallback mode)",
+      };
+    }
+    throw error;
+  }
 }
 
 async function fetchAiJobStatus(aiJobId) {
@@ -211,15 +221,26 @@ async function fetchAiAnalysis(aiJobId) {
 }
 
 async function fetchAiImage(aiJobId) {
-  const response = await fetch(`/api/platform/ai/job/${encodeURIComponent(aiJobId)}`, {
-    method: "GET",
-    credentials: "include",
-  });
-  if (!response.ok) {
-    throw new Error(`Get image failed: HTTP ${response.status}`);
+  const candidates = [
+    `/api/platform/ai/images/segmented/${encodeURIComponent(aiJobId)}`,
+    `/api/platform/ai/images/original/${encodeURIComponent(aiJobId)}`,
+  ];
+
+  let lastStatus = 0;
+  for (const url of candidates) {
+    const response = await fetch(url, {
+      method: "GET",
+      credentials: "include",
+    });
+    if (!response.ok) {
+      lastStatus = response.status;
+      continue;
+    }
+    const blob = await response.blob();
+    return URL.createObjectURL(blob);
   }
-  const blob = await response.blob();
-  return URL.createObjectURL(blob);
+
+  throw new Error(`Get image failed: HTTP ${lastStatus || 404}`);
 }
 
 async function ensureLoginAndDefaults() {
