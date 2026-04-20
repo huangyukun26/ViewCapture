@@ -28,17 +28,24 @@ const resultImages = document.getElementById("resultImages");
 const POLL_INTERVAL_MS = 5000;
 const IMAGE_UPLOAD_CONCURRENCY = 3;
 const CSV_UPLOAD_CONCURRENCY = 2;
+const MAX_IMAGE_CACHE_ITEMS = 120;
 
 let currentUser = null;
 let defaultProjectId = "";
 let aiBaseUrl = "";
 let jobQueue = [];
+let imageCache = {};
 let pollTimer = null;
 let polling = false;
 let lastResultPayload = null;
+let activeObjectUrls = [];
 
 function queueStorageKey() {
   return `cvl_analysis_queue_${currentUser?.id || "guest"}`;
+}
+
+function imageCacheStorageKey() {
+  return `cvl_analysis_image_cache_${currentUser?.id || "guest"}`;
 }
 
 function saveQueueToLocalStorage() {
@@ -66,6 +73,34 @@ function loadQueueFromLocalStorage() {
     }
   } catch {
     jobQueue = [];
+  }
+}
+
+function saveImageCacheToLocalStorage() {
+  if (!currentUser) {
+    return;
+  }
+  localStorage.setItem(imageCacheStorageKey(), JSON.stringify(imageCache));
+}
+
+function loadImageCacheFromLocalStorage() {
+  if (!currentUser) {
+    return;
+  }
+  try {
+    const raw = localStorage.getItem(imageCacheStorageKey());
+    if (!raw) {
+      imageCache = {};
+      return;
+    }
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed === "object") {
+      imageCache = parsed;
+    } else {
+      imageCache = {};
+    }
+  } catch {
+    imageCache = {};
   }
 }
 
@@ -234,7 +269,183 @@ function stripImageExt(name) {
   return String(name || "").replace(/\.(png|jpg|jpeg|gif|bmp|webp)$/i, "");
 }
 
-async function fetchImageObjectUrl(endpoint) {
+function normalizeImageId(raw) {
+  let value = String(raw || "").trim();
+  if (!value) {
+    return "";
+  }
+  value = value.split("?")[0].split("#")[0];
+  value = value.replace(/\\/g, "/");
+  if (value.includes("/")) {
+    const segments = value.split("/").filter(Boolean);
+    value = segments[segments.length - 1] || "";
+  }
+  if (!value) {
+    return "";
+  }
+  return value;
+}
+
+function collectImageIdCandidates(aiJobId, analysisPayload, extraCandidates = []) {
+  const output = [];
+  const seen = new Set();
+  const pushCandidate = (raw) => {
+    const normalized = normalizeImageId(raw);
+    if (!normalized || normalized.toLowerCase().endsWith(".csv")) {
+      return;
+    }
+    const variants = [normalized, stripImageExt(normalized)];
+    for (const variant of variants) {
+      const value = String(variant || "").trim();
+      if (!value) {
+        continue;
+      }
+      const lower = value.toLowerCase();
+      if (seen.has(lower)) {
+        continue;
+      }
+      seen.add(lower);
+      output.push(value);
+    }
+  };
+
+  pushCandidate(aiJobId);
+  for (const extra of extraCandidates) {
+    pushCandidate(extra);
+  }
+
+  const root = analysisPayload?.data || analysisPayload || {};
+  const stack = [root];
+  const keyHints = new Set([
+    "name",
+    "filename",
+    "file_name",
+    "imagename",
+    "image_name",
+    "image",
+    "jobid",
+    "job_id",
+    "id",
+    "png",
+    "path",
+  ]);
+
+  let traversed = 0;
+  while (stack.length && traversed < 500) {
+    traversed += 1;
+    const current = stack.pop();
+    if (!current) {
+      continue;
+    }
+    if (Array.isArray(current)) {
+      for (const item of current) {
+        stack.push(item);
+      }
+      continue;
+    }
+    if (typeof current !== "object") {
+      continue;
+    }
+    for (const [key, value] of Object.entries(current)) {
+      if (typeof value === "string") {
+        const lowerKey = key.toLowerCase();
+        if (
+          keyHints.has(lowerKey) ||
+          /\.(png|jpg|jpeg|gif|bmp|webp)$/i.test(value) ||
+          /^[a-z0-9._-]{6,}$/i.test(value)
+        ) {
+          pushCandidate(value);
+        }
+        continue;
+      }
+      if (value && typeof value === "object") {
+        stack.push(value);
+      }
+    }
+  }
+
+  return output;
+}
+
+function clearActiveObjectUrls() {
+  for (const url of activeObjectUrls) {
+    try {
+      URL.revokeObjectURL(url);
+    } catch {
+      // ignore
+    }
+  }
+  activeObjectUrls = [];
+}
+
+function sanitizeResultPayloadForDisplay(payload) {
+  try {
+    const cloned = JSON.parse(JSON.stringify(payload || {}));
+    if (Array.isArray(cloned.images)) {
+      cloned.images = cloned.images.map((item) => ({
+        ...item,
+        url: typeof item.url === "string" && item.url.startsWith("data:") ? "[cached-image-data-url]" : item.url,
+      }));
+    }
+    return cloned;
+  } catch {
+    return payload;
+  }
+}
+
+function getCachedImages(aiJobId) {
+  if (!aiJobId) {
+    return null;
+  }
+  const entry = imageCache[aiJobId];
+  if (!entry || !Array.isArray(entry.images) || entry.images.length === 0) {
+    return null;
+  }
+  return entry;
+}
+
+function setCachedImages(aiJobId, cacheImages, imageIdHints = []) {
+  if (!aiJobId || !Array.isArray(cacheImages) || cacheImages.length === 0) {
+    return;
+  }
+  imageCache[aiJobId] = {
+    updatedAt: new Date().toISOString(),
+    imageIdHints: uniqNonEmpty(imageIdHints),
+    images: cacheImages.map((item) => ({
+      type: item.type,
+      label: item.label,
+      id: item.id || "",
+      dataUrl: item.dataUrl,
+    })),
+  };
+
+  const keys = Object.keys(imageCache);
+  if (keys.length > MAX_IMAGE_CACHE_ITEMS) {
+    keys
+      .sort((a, b) => {
+        const t1 = new Date(imageCache[a]?.updatedAt || 0).getTime();
+        const t2 = new Date(imageCache[b]?.updatedAt || 0).getTime();
+        return t1 - t2;
+      })
+      .slice(0, keys.length - MAX_IMAGE_CACHE_ITEMS)
+      .forEach((key) => {
+        delete imageCache[key];
+      });
+  }
+
+  saveImageCacheToLocalStorage();
+}
+
+function blobToDataUrl(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.onerror = () => reject(reader.error || new Error("Failed to read blob as data URL."));
+    reader.readAsDataURL(blob);
+  });
+}
+
+async function fetchImageResource(endpoint) {
   const response = await fetch(endpoint, {
     method: "GET",
     credentials: "include",
@@ -245,29 +456,28 @@ async function fetchImageObjectUrl(endpoint) {
     throw error;
   }
   const blob = await response.blob();
-  return URL.createObjectURL(blob);
+  const objectUrl = URL.createObjectURL(blob);
+  const dataUrl = await blobToDataUrl(blob);
+  return { objectUrl, dataUrl };
 }
 
-async function fetchAiImages(aiJobId, analysisPayload) {
-  const analysisRoot = analysisPayload?.data || analysisPayload || {};
-  const analysisName = analysisRoot.name || analysisRoot.fileName || "";
-
-  const idCandidates = uniqNonEmpty([
-    aiJobId,
-    analysisName,
-    stripImageExt(analysisName),
-  ]);
+async function fetchAiImages(aiJobId, analysisPayload, extraCandidates = []) {
+  const idCandidates = collectImageIdCandidates(aiJobId, analysisPayload, extraCandidates);
 
   const images = [];
+  const cacheImages = [];
+  const usedIds = [];
   let lastError = null;
 
   for (const id of idCandidates) {
     if (!images.find((item) => item.type === "original")) {
       try {
-        const originalUrl = await fetchImageObjectUrl(
+        const original = await fetchImageResource(
           `/api/platform/ai/images/original/${encodeURIComponent(id)}`
         );
-        images.push({ type: "original", label: "Original Image", url: originalUrl });
+        images.push({ type: "original", label: "Original Image", url: original.objectUrl, id });
+        cacheImages.push({ type: "original", label: "Original Image", dataUrl: original.dataUrl, id });
+        usedIds.push(id);
       } catch (error) {
         lastError = error;
       }
@@ -275,10 +485,12 @@ async function fetchAiImages(aiJobId, analysisPayload) {
 
     if (!images.find((item) => item.type === "segmented")) {
       try {
-        const segmentedUrl = await fetchImageObjectUrl(
+        const segmented = await fetchImageResource(
           `/api/platform/ai/images/segmented/${encodeURIComponent(id)}`
         );
-        images.push({ type: "segmented", label: "Segmented Image", url: segmentedUrl });
+        images.push({ type: "segmented", label: "Segmented Image", url: segmented.objectUrl, id });
+        cacheImages.push({ type: "segmented", label: "Segmented Image", dataUrl: segmented.dataUrl, id });
+        usedIds.push(id);
       } catch (error) {
         lastError = error;
       }
@@ -306,7 +518,12 @@ async function fetchAiImages(aiJobId, analysisPayload) {
   if (segmented) {
     ordered.push(segmented);
   }
-  return ordered;
+  return {
+    images: ordered,
+    cacheImages,
+    usedIds: uniqNonEmpty(usedIds),
+    idCandidates,
+  };
 }
 
 async function ensureLoginAndDefaults() {
@@ -407,10 +624,16 @@ function renderMetricsFromAnalysis(analysisPayload) {
 }
 
 function renderResultImages(imageUrls) {
+  clearActiveObjectUrls();
   if (!imageUrls.length) {
     resultImages.style.display = "none";
     resultImages.innerHTML = "";
     return;
+  }
+  for (const item of imageUrls) {
+    if (typeof item?.url === "string" && item.url.startsWith("blob:")) {
+      activeObjectUrls.push(item.url);
+    }
   }
   resultImages.style.display = "grid";
   resultImages.innerHTML = imageUrls
@@ -621,7 +844,13 @@ async function queryAnalysisResult() {
     queriedAt: new Date().toISOString(),
     analysis: null,
     images: [],
+    imageIdHints: [],
   };
+  const queueItem = jobQueue.find((item) => item.aiJobId === aiJobId);
+  const extraIdHints = uniqNonEmpty([
+    ...(Array.isArray(queueItem?.imageIdHints) ? queueItem.imageIdHints : []),
+    queueItem?.sourceName || "",
+  ]);
 
   try {
     const analysis = await fetchAiAnalysis(aiJobId);
@@ -631,16 +860,42 @@ async function queryAnalysisResult() {
   }
 
   try {
-    const imageItems = await fetchAiImages(aiJobId, resultPayload.analysis);
-    resultPayload.images.push(...imageItems);
+    const imageBundle = await fetchAiImages(aiJobId, resultPayload.analysis, extraIdHints);
+    resultPayload.images.push(...imageBundle.images);
+    resultPayload.imageIdHints = uniqNonEmpty([
+      ...extraIdHints,
+      ...imageBundle.usedIds,
+      ...imageBundle.idCandidates,
+    ]);
+    setCachedImages(aiJobId, imageBundle.cacheImages, resultPayload.imageIdHints);
   } catch (error) {
     resultPayload.imageError = error.message;
+    const cached = getCachedImages(aiJobId);
+    if (cached?.images?.length) {
+      resultPayload.images = cached.images.map((item) => ({
+        type: item.type,
+        label: `${item.label} (cached)`,
+        id: item.id || "",
+        url: item.dataUrl,
+      }));
+      resultPayload.imageIdHints = uniqNonEmpty([
+        ...extraIdHints,
+        ...(Array.isArray(cached.imageIdHints) ? cached.imageIdHints : []),
+      ]);
+      resultPayload.imageError = `${error.message}; fallback to cached images`;
+    }
   }
 
-  jobResult.textContent = JSON.stringify(resultPayload, null, 2);
+  jobResult.textContent = JSON.stringify(sanitizeResultPayloadForDisplay(resultPayload), null, 2);
   renderMetricsFromAnalysis(resultPayload.analysis);
   renderResultImages(resultPayload.images);
   setLastResultPayload(resultPayload);
+
+  if (queueItem && resultPayload.imageIdHints.length) {
+    updateQueueItem(aiJobId, { imageIdHints: resultPayload.imageIdHints });
+    saveQueueToLocalStorage();
+    renderQueue();
+  }
 
   if (resultPayload.analysis || resultPayload.images.length) {
     setStatusLine(jobStatus, "结果读取完成。", "success");
@@ -683,7 +938,7 @@ queueList.addEventListener("click", (event) => {
   }
   if (action === "inspect") {
     jobIdInput.value = aiJobId;
-    queryJobStatus().catch((error) => setStatusLine(jobStatus, error.message, "error"));
+    queryAnalysisResult().catch((error) => setStatusLine(jobStatus, error.message, "error"));
     return;
   }
   if (action === "remove") {
@@ -724,6 +979,7 @@ refreshHealthBtn.addEventListener("click", () => {
 
 refreshQueueBtn.addEventListener("click", () => {
   loadQueueFromLocalStorage();
+  loadImageCacheFromLocalStorage();
   renderQueue();
   setStatusLine(queueStatus, `loaded ${jobQueue.length} job(s)`);
 });
@@ -752,6 +1008,10 @@ downloadResultBtn.addEventListener("click", () => {
   downloadLastResult();
 });
 
+window.addEventListener("beforeunload", () => {
+  clearActiveObjectUrls();
+});
+
 async function bootstrap() {
   try {
     await ensureLoginAndDefaults();
@@ -761,6 +1021,7 @@ async function bootstrap() {
   }
 
   loadQueueFromLocalStorage();
+  loadImageCacheFromLocalStorage();
   renderQueue();
   ensurePollingStarted();
   await refreshBackendHealth();

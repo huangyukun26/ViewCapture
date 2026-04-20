@@ -724,31 +724,75 @@ var handler = new Cesium.ScreenSpaceEventHandler(viewer.canvas);
 
     const lonInput = document.getElementById('lon');
     const latInput = document.getElementById('lat');
+    const heightInput = document.getElementById('fly_height');
     if (lonInput && !lonInput.value) {
       lonInput.value = HONG_KONG_START.lon.toFixed(6);
     }
     if (latInput && !latInput.value) {
       latInput.value = HONG_KONG_START.lat.toFixed(6);
     }
+    if (heightInput && !heightInput.value) {
+      heightInput.value = "300";
+    }
     
     const btn_flyto = document.getElementById('flyto');
+    const btn_jump_to_coord = document.getElementById('jumpToCoord');
 
-    btn_flyto.addEventListener('click',function(){
+    function flyToInputCoordinate() {
+      var lon = parseFloat(lonInput ? lonInput.value : "");
+      var lat = parseFloat(latInput ? latInput.value : "");
+      var height = parseFloat(heightInput ? heightInput.value : "");
 
-      var lon=document.getElementById('lon').value;
+      if (!Number.isFinite(lon) || !Number.isFinite(lat)) {
+        alert("Please input valid longitude and latitude.");
+        return;
+      }
+      if (Math.abs(lon) > 180 || Math.abs(lat) > 90) {
+        alert("Longitude/Latitude out of range.");
+        return;
+      }
+      if (!Number.isFinite(height)) {
+        height = 300;
+      }
 
-      var lat=document.getElementById('lat').value;
-  
       viewer.scene.camera.flyTo({
-        destination: Cesium.Cartesian3.fromDegrees(lon, lat, 300),
+        destination: Cesium.Cartesian3.fromDegrees(lon, lat, height),
         orientation: {
-          heading: Cesium.Math.toRadians(0),
-          pitch: Cesium.Math.toRadians(-90),
+          heading: viewer.camera.heading,
+          pitch: Cesium.Math.toRadians(-35),
+          roll: 0.0,
         },
-        duration: 0,
-      }); //Sandcastle_End
+        duration: 1.2,
+      });
+    }
 
-    });
+    if (btn_flyto) {
+      btn_flyto.addEventListener('click', flyToInputCoordinate);
+    }
+    if (btn_jump_to_coord) {
+      btn_jump_to_coord.addEventListener('click', flyToInputCoordinate);
+    }
+    if (lonInput) {
+      lonInput.addEventListener('keydown', function (evt) {
+        if (evt.key === "Enter") {
+          flyToInputCoordinate();
+        }
+      });
+    }
+    if (latInput) {
+      latInput.addEventListener('keydown', function (evt) {
+        if (evt.key === "Enter") {
+          flyToInputCoordinate();
+        }
+      });
+    }
+    if (heightInput) {
+      heightInput.addEventListener('keydown', function (evt) {
+        if (evt.key === "Enter") {
+          flyToInputCoordinate();
+        }
+      });
+    }
 
     // load Google photorealistic 3D tiles
   try {

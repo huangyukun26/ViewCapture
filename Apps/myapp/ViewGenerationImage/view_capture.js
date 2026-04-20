@@ -103,6 +103,62 @@ const HONG_KONG_START = {
   pitchDeg: -35.0,
   rollDeg: 0.0,
 };
+const flyLonInput = document.getElementById('fly_lon');
+const flyLatInput = document.getElementById('fly_lat');
+const flyHeightInput = document.getElementById('fly_height');
+const flyToCoordBtn = document.getElementById('flytoCoord');
+
+if (flyLonInput && !flyLonInput.value) {
+  flyLonInput.value = HONG_KONG_START.lon.toFixed(6);
+}
+if (flyLatInput && !flyLatInput.value) {
+  flyLatInput.value = HONG_KONG_START.lat.toFixed(6);
+}
+if (flyHeightInput && !flyHeightInput.value) {
+  flyHeightInput.value = "300";
+}
+
+function flyToManualCoord() {
+  const lon = parseFloat(flyLonInput ? flyLonInput.value : "");
+  const lat = parseFloat(flyLatInput ? flyLatInput.value : "");
+  let height = parseFloat(flyHeightInput ? flyHeightInput.value : "");
+
+  if (!Number.isFinite(lon) || !Number.isFinite(lat)) {
+    alert("Please input valid longitude and latitude.");
+    return;
+  }
+  if (Math.abs(lon) > 180 || Math.abs(lat) > 90) {
+    alert("Longitude/Latitude out of range.");
+    return;
+  }
+  if (!Number.isFinite(height)) {
+    height = 300;
+  }
+
+  viewer.scene.camera.flyTo({
+    destination: Cesium.Cartesian3.fromDegrees(lon, lat, height),
+    orientation: {
+      heading: viewer.camera.heading,
+      pitch: Cesium.Math.toRadians(-35),
+      roll: 0.0,
+    },
+    duration: 1.2,
+  });
+}
+
+if (flyToCoordBtn) {
+  flyToCoordBtn.addEventListener("click", flyToManualCoord);
+}
+[flyLonInput, flyLatInput, flyHeightInput].forEach((input) => {
+  if (!input) {
+    return;
+  }
+  input.addEventListener("keydown", function (evt) {
+    if (evt.key === "Enter") {
+      flyToManualCoord();
+    }
+  });
+});
 
 try {
   const tileset = await Cesium.createGooglePhotorealistic3DTileset();
